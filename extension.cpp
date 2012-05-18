@@ -1103,12 +1103,7 @@ static cell_t Native_json_string_set(IPluginContext *pContext, const cell_t *par
 //native Handle:json_boolean(bool:bState);
 static cell_t Native_json_boolean(IPluginContext *pContext, const cell_t *params) {
 	bool bState = params[1];
-	json_t *result;
-	if(bState) {
-		result = json_true();
-	} else {
-		result = json_false();
-	}
+	json_t *result = bState ? json_true() : json_false();
 
 	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, result, pContext->GetIdentity(), myself->GetIdentity(), NULL);
 

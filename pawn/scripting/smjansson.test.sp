@@ -18,7 +18,7 @@ public OnPluginStart() {
 
 	new bool:bStepSuccess = false;
 
-	new Handle:hTest = Test_New(90);
+	new Handle:hTest = Test_New(91);
 	Test_Ok(hTest, LibraryExists("jansson"), "Library is loaded");
 
 	new Handle:hObj = json_object();
