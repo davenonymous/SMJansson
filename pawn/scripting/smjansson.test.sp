@@ -142,7 +142,7 @@ public OnPluginStart() {
 	CloseHandle(hObjNested);
 
 
-	LogMessage("      - Creating the same Array using reference stealing");
+	PrintToServer("      - Creating the same Array using reference stealing");
 	new Handle:hArrayStealing = json_array();
 	Test_Ok(hTest, json_array_append_new(hArrayStealing, json_string("1")), "Appending new String to Array");
 	Test_Ok(hTest, json_array_append_new(hArrayStealing, json_real(2.0)), "Appending new Float to Array");
@@ -190,7 +190,7 @@ public OnPluginStart() {
 		new json_type:xShouldBeType;
 		GetTrieValue(hTestTrie, sKey, xShouldBeType);
 
-		LogMessage("      - Found key: %s (Type: %s)", sKey, sType);
+		PrintToServer("      - Found key: %s (Type: %s)", sKey, sType);
 		Test_Is(hTest, xShouldBeType, _:xType, "Type is correct");
 		RemoveFromTrie(hTestTrie, sKey);
 
@@ -220,7 +220,7 @@ public OnPluginStart() {
 				new String:sArrayType[32];
 				Stringify_json_type(json_typeof(hElement), sArrayType, sizeof(sArrayType));
 
-				LogMessage("      - Found element with type: %s", sArrayType);
+				PrintToServer("      - Found element with type: %s", sArrayType);
 				RemoveFromTrie(hTestTrieForArray, sArrayType);
 				CloseHandle(hElement);
 			}
@@ -256,13 +256,13 @@ public OnPluginStart() {
 	Test_OkNot(hTest, json_equal(hReloaded, hObj), "Written file and data in memory are not equal anymore");
 
 
-	LogMessage("      - Creating new object with 4 keys via load");
+	PrintToServer("      - Creating new object with 4 keys via load");
 	new Handle:hObjManipulation = json_load("{\"A\":1,\"B\":2,\"C\":3,\"D\":4}");
 	Test_Ok(hTest, json_object_del(hObjManipulation, "D"), "Deleting element from object");
 	Test_Is(hTest, json_object_size(hObjManipulation), 3, "Object size is correct");
 
 
-	LogMessage("      - Creating new object to update the previous one");
+	PrintToServer("      - Creating new object to update the previous one");
 	new Handle:hObjUpdate = json_load("{\"A\":10,\"B\":20,\"C\":30,\"D\":40,\"E\":50,\"F\":60,\"G\":70}");
 	Test_Ok(hTest, json_object_update_existing(hObjManipulation, hObjUpdate), "Updating existing keys");
 
@@ -280,7 +280,7 @@ public OnPluginStart() {
 	Test_Ok(hTest, json_object_clear(hObjManipulation), "Clearing new object");
 	Test_Is(hTest, json_object_size(hObjManipulation), 0, "Object is empty");
 
-	LogMessage("      - Adding one of the original four keys");
+	PrintToServer("      - Adding one of the original four keys");
 	new Handle:hBNew = json_integer(2);
 	json_object_set(hObjManipulation, "B", hBNew);
 	Test_Ok(hTest, json_object_update(hObjManipulation, hObjUpdate), "Updating all keys");
@@ -293,7 +293,7 @@ public OnPluginStart() {
 
 	Test_Is(hTest, json_object_size(hObjManipulation), 7, "Object size is correct");
 
-	LogMessage("      - Creating and adding an array to the object");
+	PrintToServer("      - Creating and adding an array to the object");
 	new Handle:hCopyArray = json_array();
 	new Handle:hNoMoreVariableNames = json_string("no more!");
 	new Handle:hEvenLessVariableNames = json_string("less n less!");
@@ -307,7 +307,7 @@ public OnPluginStart() {
 	Test_Is(hTest, json_object_size(hCopy), 8, "Object size is correct");
 	Test_Ok(hTest, json_equal(hCopy, hObjManipulation), "Objects are equal");
 
-	LogMessage("      - Modifying the array of the original Object");
+	PrintToServer("      - Modifying the array of the original Object");
 	new Handle:hEmptyVariableNames = json_string("empty!");
 	json_array_append(hCopyArray, hEmptyVariableNames);
 
@@ -319,7 +319,7 @@ public OnPluginStart() {
 	Test_Is(hTest, json_object_size(hDeepCopy), 8, "Object size is correct");
 	Test_Ok(hTest, json_equal(hDeepCopy, hObjManipulation), "Objects are equal");
 
-	LogMessage("      - Modifying the array of the original Object");
+	PrintToServer("      - Modifying the array of the original Object");
 	new Handle:hDeadVariableNames = json_string("dead!");
 	json_array_append(hCopyArray, hDeadVariableNames);
 	CloseHandle(hCopyArray);
@@ -327,6 +327,20 @@ public OnPluginStart() {
 	Test_OkNot(hTest, json_equal(hDeepCopy, hObjManipulation), "Content of copy is not identical anymore (was a deep copy)");
 
 
+	new Handle:hBooleanObject = json_object();
+	json_object_set_new(hBooleanObject, "true1", json_true());
+	json_object_set_new(hBooleanObject, "false1", json_false());
+	json_object_set_new(hBooleanObject, "true2", json_boolean(true));
+	json_object_set_new(hBooleanObject, "false2", json_boolean(false));
+	json_object_set_new(hBooleanObject, "null", json_null());
+
+	new String:sBooleanObjectDump[4096];
+	json_dump(hBooleanObject, sBooleanObjectDump, sizeof(sBooleanObjectDump), 0);
+
+	new String:sBooleanShouldBe[4096] = "{\"false2\": false, \"true1\": true, \"false1\": false, \"true2\": true, \"null\": null}";
+	Test_Is_String(hTest, sBooleanObjectDump, sBooleanShouldBe, "Created JSON matches");
+
+	CloseHandle(hBooleanObject);
 
 
 	// Finish testing
@@ -334,17 +348,19 @@ public OnPluginStart() {
 
 
 	json_dump(hObj, sJSON, sizeof(sJSON));
-	LogMessage("# JSON is:\n-------------\n%s\n-------------", sJSON);
+	PrintToServer("\nJSON 1:\n-------------\n%s\n-------------\n", sJSON);
 
 
 	new String:sJSONReloaded[4096];
 	json_dump(hReloaded, sJSONReloaded, sizeof(sJSONReloaded), 2);
-	LogMessage("Reloaded and further modified JSON is:\n-------------\n%s\n-------------", sJSONReloaded);
+	PrintToServer("JSON 2:\n-------------\n%s\n-------------\n", sJSONReloaded);
 
 	new String:sJSONManipulated[4096];
 	json_dump(hObjManipulation, sJSONManipulated, sizeof(sJSONManipulated), 0);
-	LogMessage("Object manipulated JSON is:\n-------------\n%s\n-------------", sJSONManipulated);
+	PrintToServer("JSON 3:\n-------------\n%s\n-------------\n", sJSONManipulated);
 
+
+	PrintToServer("JSON 4:\n-------------\n%s\n-------------\n", sBooleanObjectDump);
 
 	CloseHandle(hObj);
 	CloseHandle(hObjManipulation);

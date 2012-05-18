@@ -287,7 +287,7 @@ stock Test_LogThis(Handle:hTest, const String:format[], any:...) {
 	VFormat(sMessage, sizeof(sMessage), format, 3);
 
 	if(StrEqual(filename, "")) {
-		LogMessage(sMessage);
+		PrintToServer(sMessage);
 	} else {
 		if(file == INVALID_HANDLE) {
 			file = OpenFile(filename, "a");
