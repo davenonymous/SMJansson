@@ -41,7 +41,7 @@
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"SMJansson"
 #define SMEXT_CONF_DESCRIPTION	"JSON parser/writer"
-#define SMEXT_CONF_VERSION		JANSSON_VERSION "/1"
+#define SMEXT_CONF_VERSION		"2.3.1/2"
 #define SMEXT_CONF_AUTHOR		"Thrawn2"
 #define SMEXT_CONF_URL			"http://www.sourcemod.net/"
 #define SMEXT_CONF_LOGTAG		"SMJSON"

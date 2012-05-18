@@ -1100,6 +1100,64 @@ static cell_t Native_json_string_set(IPluginContext *pContext, const cell_t *par
 	return (json_string_set_nocheck(object, value) == 0);
 }
 
+//native Handle:json_boolean(bool:bState);
+static cell_t Native_json_boolean(IPluginContext *pContext, const cell_t *params) {
+	bool bState = params[1];
+	json_t *result;
+	if(bState) {
+		result = json_true();
+	} else {
+		result = json_false();
+	}
+
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, result, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+	if(hndlResult == BAD_HANDLE) {
+		pContext->ThrowNativeError("Could not create <Boolean> handle.");
+	}
+
+	return hndlResult;
+}
+
+//native Handle:json_true();
+static cell_t Native_json_true(IPluginContext *pContext, const cell_t *params) {
+	json_t *result = json_true();
+
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, result, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+	if(hndlResult == BAD_HANDLE) {
+		pContext->ThrowNativeError("Could not create <True> handle.");
+	}
+
+	return hndlResult;
+}
+
+//native Handle:json_false();
+static cell_t Native_json_false(IPluginContext *pContext, const cell_t *params) {
+	json_t *result = json_false();
+
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, result, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+	if(hndlResult == BAD_HANDLE) {
+		pContext->ThrowNativeError("Could not create <False> handle.");
+	}
+
+	return hndlResult;
+}
+
+//native Handle:json_null();
+static cell_t Native_json_null(IPluginContext *pContext, const cell_t *params) {
+	json_t *result = json_null();
+
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, result, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+	if(hndlResult == BAD_HANDLE) {
+		pContext->ThrowNativeError("Could not create <Null> handle.");
+	}
+
+	return hndlResult;
+}
+
 //native Handle:json_integer(value);
 static cell_t Native_json_integer(IPluginContext *pContext, const cell_t *params) {
 	json_t *result = json_integer(params[1]);
@@ -1385,6 +1443,11 @@ const sp_nativeinfo_t json_natives[] =
 	{"json_deep_copy",							Native_json_deep_copy},
 
 	// Values
+	{"json_boolean",							Native_json_boolean},
+	{"json_true",								Native_json_true},
+	{"json_false",								Native_json_false},
+	{"json_null",								Native_json_null},	
+
 	{"json_string",								Native_json_string},
 	{"json_string_value",						Native_json_string_value},
 	{"json_string_set",							Native_json_string_set},

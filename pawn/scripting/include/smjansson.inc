@@ -534,6 +534,46 @@ native bool:json_array_extend(Handle:hArray, Handle:hOther);
 
 
 /**
+ * Booleans & NULL
+ *
+ */
+
+/**
+ * Returns a handle to a new JSON Boolean with value true,
+ * or INVALID_HANDLE on error.
+ *
+ * @return                  Handle to the new Boolean object
+ */
+native Handle:json_true();
+
+/**
+ * Returns a handle to a new JSON Boolean with value false,
+ * or INVALID_HANDLE on error.
+ *
+ * @return                  Handle to the new Boolean object
+ */
+native Handle:json_false();
+
+/**
+ * Returns a handle to a new JSON Boolean with the value passed
+ * in bState or INVALID_HANDLE on error.
+ *
+ * @param bState            Value for the new Boolean object
+ * @return                  Handle to the new Boolean object
+ */
+native Handle:json_boolean(bool:bState);
+
+/**
+ * Returns a handle to a new JSON NULL or INVALID_HANDLE on error.
+ *
+ * @return                  Handle to the new NULL object
+ */
+native Handle:json_null();
+
+
+
+
+/**
  * Strings
  *
  * Jansson uses UTF-8 as the character encoding. All JSON strings must
