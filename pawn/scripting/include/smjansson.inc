@@ -590,7 +590,7 @@ native Handle:json_null();
  *							Must be a valid UTF-8 encoded Unicode string.
  * @return                  Handle to the new String object
  */
-native Handle:json_string(String:sValue[]);
+native Handle:json_string(const String:sValue[]);
 
 /**
  * Saves the associated value of hString as a null terminated UTF-8
@@ -796,6 +796,206 @@ native bool:json_dump_file(Handle:hObject, const String:sFilePath[], iIndentWidt
 
 
 
+/**
+ * Convenience stocks
+ *
+ * These are some custom functions to ease the development using this
+ * extension.
+ *
+ */
+
+/**
+ * Returns a handle to a new JSON string, or INVALID_HANDLE on error.
+ * Formats the string according to the SourceMod format rules.
+ * The result must be a valid UTF-8 encoded Unicode string.
+ *
+ * @param sFormat           Formatting rules.
+ * @param ...			    Variable number of format parameters.
+ * @return                  Handle to the new String object
+ */
+stock Handle:json_string_format(const String:sFormat[], any:...) {
+	new String:sTmp[4096];
+	VFormat(sTmp, sizeof(sTmp), sFormat, 2);
+
+	return json_string(sTmp);
+}
+
+/**
+ * Returns a handle to a new JSON string, or INVALID_HANDLE on error.
+ * This stock allows to specify the size of the temporary buffer used
+ * to create the string. Use this if the default of 4096 is not enough
+ * for your string.
+ * Formats the string according to the SourceMod format rules.
+ * The result must be a valid UTF-8 encoded Unicode string.
+ *
+ * @param tmpBufferLength   Size of the temporary buffer
+ * @param sFormat           Formatting rules.
+ * @param ...			    Variable number of format parameters.
+ * @return                  Handle to the new String object
+ */
+stock Handle:json_string_format_ex(tmpBufferLength, const String:sFormat[], any:...) {
+	new String:sTmp[tmpBufferLength];
+	VFormat(sTmp, sizeof(sTmp), sFormat, 3);
+
+	return json_string(sTmp);
+}
+
+
+/**
+ * Returns the boolean value of the element in hArray at position iIndex.
+ *
+ * @param hArray            Handle to JSON array to get a value from
+ * @param iIndex            Position to retrieve
+ *
+ * @return                  True if it's a boolean and TRUE,
+ *                          false otherwise.
+ */
+stock bool:json_array_get_bool(Handle:hArray, iIndex) {
+	new Handle:hElement = json_array_get(hArray, iIndex);
+
+	new bool:bResult = (json_is_true(hElement) ? true : false);
+
+	CloseHandle(hElement);
+	return bResult;
+}
+
+/**
+ * Returns the float value of the element in hArray at position iIndex.
+ *
+ * @param hArray            Handle to JSON array to get a value from
+ * @param iIndex            Position to retrieve
+ *
+ * @return                  Float value,
+ *                          or 0.0 if element is not a JSON Real.
+ */
+stock Float:json_array_get_float(Handle:hArray, iIndex) {
+	new Handle:hElement = json_array_get(hArray, iIndex);
+
+	new Float:fResult = (json_is_number(hElement) ? json_number_value(hElement) : 0.0);
+
+	CloseHandle(hElement);
+	return fResult;
+}
+
+/**
+ * Returns the integer value of the element in hArray at position iIndex.
+ *
+ * @param hArray            Handle to JSON array to get a value from
+ * @param iIndex            Position to retrieve
+ *
+ * @return                  Integer value,
+ *                          or 0 if element is not a JSON Integer.
+ */
+stock json_array_get_int(Handle:hArray, iIndex) {
+	new Handle:hElement = json_array_get(hArray, iIndex);
+
+	new iResult = (json_is_integer(hElement) ? json_integer_value(hElement) : 0);
+
+	CloseHandle(hElement);
+	return iResult;
+}
+
+/**
+ * Saves the associated value of the element in hArray at position iIndex
+ * as a null terminated UTF-8 encoded string in the passed buffer.
+ *
+ * @param hArray            Handle to JSON array to get a value from
+ * @param iIndex            Position to retrieve
+ * @param sBuffer           Buffer to store the value of the String.
+ * @param maxlength         Maximum length of string buffer.
+ *
+ * @error                   Element is not a JSON String.
+ * @return                  Length of the returned string or -1 on error.
+ */
+stock json_array_get_string(Handle:hArray, iIndex, String:sBuffer[], maxlength) {
+	new Handle:hElement = json_array_get(hArray, iIndex);
+
+	new iResult = -1;
+	if(json_is_string(hElement)) {
+		iResult = json_string_value(hElement, sBuffer, maxlength);
+	}
+	CloseHandle(hElement);
+
+	return iResult;
+}
+
+/**
+ * Returns the boolean value of the element in hObj at entry sKey.
+ *
+ * @param hObj              Handle to JSON object to get a value from
+ * @param sKey              Entry to retrieve
+ *
+ * @return                  True if it's a boolean and TRUE,
+ *                          false otherwise.
+ */
+stock bool:json_object_get_bool(Handle:hObj, const String:sKey[]) {
+	new Handle:hElement = json_object_get(hObj, sKey);
+
+	new bool:bResult = (json_is_true(hElement) ? true : false);
+
+	CloseHandle(hElement);
+	return bResult;
+}
+
+/**
+ * Returns the float value of the element in hObj at entry sKey.
+ *
+ * @param hObj              Handle to JSON object to get a value from
+ * @param sKey              Position to retrieve
+ *
+ * @return                  Float value,
+ *                          or 0.0 if element is not a JSON Real.
+ */
+stock Float:json_object_get_float(Handle:hObj, const String:sKey[]) {
+	new Handle:hElement = json_object_get(hObj, sKey);
+
+	new Float:fResult = (json_is_number(hElement) ? json_number_value(hElement) : 0.0);
+
+	CloseHandle(hElement);
+	return fResult;
+}
+
+/**
+ * Returns the integer value of the element in hObj at entry sKey.
+ *
+ * @param hObj              Handle to JSON object to get a value from
+ * @param sKey              Position to retrieve
+ *
+ * @return                  Integer value,
+ *                          or 0 if element is not a JSON Integer.
+ */
+stock json_object_get_int(Handle:hObj, const String:sKey[]) {
+	new Handle:hElement = json_object_get(hObj, sKey);
+
+	new iResult = (json_is_integer(hElement) ? json_integer_value(hElement) : 0);
+
+	CloseHandle(hElement);
+	return iResult;
+}
+
+/**
+ * Saves the associated value of the element in hObj at entry sKey
+ * as a null terminated UTF-8 encoded string in the passed buffer.
+ *
+ * @param hObj              Handle to JSON object to get a value from
+ * @param sKey              Entry to retrieve
+ * @param sBuffer           Buffer to store the value of the String.
+ * @param maxlength         Maximum length of string buffer.
+ *
+ * @error                   Element is not a JSON String.
+ * @return                  Length of the returned string or -1 on error.
+ */
+stock json_object_get_string(Handle:hObj, const String:sKey[], String:sBuffer[], maxlength) {
+	new Handle:hElement = json_object_get(hObj, sKey);
+
+	new iResult = -1;
+	if(json_is_string(hElement)) {
+		iResult = json_string_value(hElement, sBuffer, maxlength);
+	}
+	CloseHandle(hElement);
+
+	return iResult;
+}
 
 
 /**
