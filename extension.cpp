@@ -1277,6 +1277,10 @@ static cell_t Native_json_load(IPluginContext *pContext, const cell_t *params) {
 
     json_error_t error;
     json_t *object = json_loads(sJSON, 0, &error);
+	if(!object) {
+		g_pSM->LogError(myself, "Error in line %d, col %d: %s", error.line, error.column, error.text);
+		return BAD_HANDLE;
+	}
 
 	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
 
