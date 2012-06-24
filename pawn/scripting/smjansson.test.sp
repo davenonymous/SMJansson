@@ -18,7 +18,7 @@ public OnPluginStart() {
 
 	new bool:bStepSuccess = false;
 
-	new Handle:hTest = Test_New(91);
+	new Handle:hTest = Test_New(100);
 	Test_Ok(hTest, LibraryExists("jansson"), "Library is loaded");
 
 	new Handle:hObj = json_object();
@@ -255,6 +255,52 @@ public OnPluginStart() {
 	CloseHandle(hTestTrie);
 	Test_OkNot(hTest, json_equal(hReloaded, hObj), "Written file and data in memory are not equal anymore");
 
+	PrintToServer("      - Creating the same object using json_pack");
+	new Handle:hParams = CreateArray(64);
+	PushArrayString(hParams,	"__String");
+	PushArrayString(hParams,	"What is the \"Hitchhiker's guide to the galaxy\"?");
+	PushArrayString(hParams,	"__Integer");
+	PushArrayCell(hParams,		9001);
+	PushArrayString(hParams,	"__NestedObject");
+	PushArrayString(hParams,	"__NestedString");
+	PushArrayString(hParams,	"i am nested");
+	PushArrayString(hParams,	"__Array");
+	PushArrayCell(hParams,		3);
+	PushArrayString(hParams,	"4");
+	PushArrayString(hParams,	"Extension 1");
+	PushArrayString(hParams,	"Extension 2");
+	new Handle:hPacked = json_pack("{ss,s:is{sss:[isss]}}", hParams);
+	CloseHandle(hParams);
+	Test_Ok(hTest, json_equal(hReloaded, hPacked), "Packed JSON is equal to manually created JSON");
+	CloseHandle(hPacked);
+
+	PrintToServer("      - Testing all json_pack values");
+	new Handle:hParamsAll = CreateArray(64);
+	PushArrayString(hParamsAll,	"String");
+	PushArrayCell(hParamsAll,	42);
+	PushArrayCell(hParamsAll,	13.37);
+	PushArrayCell(hParamsAll,	20001.333);
+	PushArrayCell(hParamsAll,	true);
+	PushArrayCell(hParamsAll,	false);
+	new Handle:hPackAll = json_pack("[sifrbnb]", hParamsAll);
+	Test_Ok(hTest, json_is_array(hPackAll), "Packed JSON is an array");
+
+	new String:sElementOne[32];
+	json_array_get_string(hPackAll, 0, sElementOne, sizeof(sElementOne));
+	Test_Is_String(hTest, sElementOne, "String", "Element 1 has the correct string value");
+	Test_Is(hTest, json_array_get_int(hPackAll, 1), 42, "Element 2 has the correct integer value");
+	Test_Is(hTest, json_array_get_float(hPackAll, 2), 13.37, "Element 3 has the correct float value");
+	Test_Is(hTest, json_array_get_float(hPackAll, 3), 20001.333, "Element 4 has the correct float value");
+	Test_Is(hTest, json_array_get_bool(hPackAll, 4), true, "Element 5 is boolean true.");
+
+	new Handle:hElementFive = json_array_get(hPackAll, 5);
+	Test_Is(hTest, json_typeof(hElementFive), JSON_NULL, "Element 6 is null.");
+	CloseHandle(hElementFive);
+
+	Test_Is(hTest, json_array_get_bool(hPackAll, 6), false, "Element 7 is boolean false.");
+
+	CloseHandle(hParamsAll);
+
 
 	PrintToServer("      - Creating new object with 4 keys via load");
 	new Handle:hObjManipulation = json_load("{\"A\":1,\"B\":2,\"C\":3,\"D\":4}");
@@ -343,9 +389,6 @@ public OnPluginStart() {
 	CloseHandle(hBooleanObject);
 
 
-	// Finish testing
-	Test_End(hTest);
-
 
 	json_dump(hObj, sJSON, sizeof(sJSON));
 	PrintToServer("\nJSON 1:\n-------------\n%s\n-------------\n", sJSON);
@@ -362,10 +405,17 @@ public OnPluginStart() {
 
 	PrintToServer("JSON 4:\n-------------\n%s\n-------------\n", sBooleanObjectDump);
 
+	new String:sJSONPackAll[4096];
+	json_dump(hPackAll, sJSONPackAll, sizeof(sJSONPackAll), 4);
+
+	PrintToServer("JSON 5:\n-------------\n%s\n-------------\n", sJSONPackAll);
+
+	CloseHandle(hPackAll);
 	CloseHandle(hObj);
 	CloseHandle(hObjManipulation);
 	CloseHandle(hReloaded);
 
-
+	// Finish testing
+	Test_End(hTest);
 	CloseHandle(hTest);
 }

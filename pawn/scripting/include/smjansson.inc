@@ -998,11 +998,204 @@ stock json_object_get_string(Handle:hObj, const String:sKey[], String:sBuffer[],
 }
 
 
+
+/**
+ * Pack String Rules
+ *
+ * Here’s the full list of format characters:
+ *  n    Output a JSON null value. No argument is consumed.
+ *  s    Output a JSON string, consuming one argument.
+ *  b    Output a JSON bool value, consuming one argument.
+ *  i    Output a JSON integer value, consuming one argument.
+ *  f    Output a JSON real value, consuming one argument.
+ *  r    Output a JSON real value, consuming one argument.
+ *  []   Build an array with contents from the inner format string,
+ *       recursive value building is supported.
+ *       No argument is consumed.
+ *  {}   Build an array with contents from the inner format string.
+ *       The first, third, etc. format character represent a key,
+ *       and must be s (as object keys are always strings). The
+ *       second, fourth, etc. format character represent a value.
+ *       Recursive value building is supported.
+ *       No argument is consumed.
+ *
+ */
+
+/**
+ * This method can be used to create json objects/arrays directly
+ * without having to create the structure.
+ * See 'Pack String Rules' for more details.
+ *
+ * @param sPackString       Pack string similiar to Format()s fmt.
+ *                          See 'Pack String Rules'.
+ * @param hParams           ADT Array containing all keys and values
+ *                          in the order they appear in the pack string.
+ *
+ * @error                   Invalid pack string or pack string and
+ *                          ADT Array don't match up regarding type
+ *                          or size.
+ * @return                  Handle to JSON element.
+ */
+stock Handle:json_pack(const String:sPackString[], Handle:hParams) {
+	new iPos = 0;
+	return json_pack_element_(sPackString, iPos, hParams);
+}
+
+
+
+
+
+/**
+* Internal stocks used by json_pack(). Don't use these directly!
+*
+*/
+stock Handle:json_pack_array_(const String:sFormat[], &iPos, Handle:hParams) {
+	new Handle:hObj = json_array();
+	new iStrLen = strlen(sFormat);
+	for(; iPos < iStrLen;) {
+		new this_char = sFormat[iPos];
+
+		if(this_char == 32 || this_char == 58 || this_char == 44) {
+			// Skip whitespace, ',' and ':'
+			iPos++;
+			continue;
+		}
+
+		if(this_char == 93) {
+			// array end
+			iPos++;
+			break;
+		}
+
+		// Get the next entry as value
+		// This automatically increments the position!
+		new Handle:hValue = json_pack_element_(sFormat, iPos, hParams);
+
+		// Append the value to the array.
+		json_array_append_new(hObj, hValue);
+	}
+
+	return hObj;
+}
+
+stock Handle:json_pack_object_(const String:sFormat[], &iPos, Handle:hParams) {
+	new Handle:hObj = json_object();
+	new iStrLen = strlen(sFormat);
+	for(; iPos < iStrLen;) {
+		new this_char = sFormat[iPos];
+
+		if(this_char == 32 || this_char == 58 || this_char == 44) {
+			// Skip whitespace, ',' and ':'
+			iPos++;
+			continue;
+		}
+
+		if(this_char == 125) {
+			// } --> object end
+			iPos++;
+			break;
+		}
+
+		if(this_char != 115) {
+			LogError("Object keys must be strings at %d.", iPos);
+			return INVALID_HANDLE;
+		}
+
+		// Get the key string for this object from
+		// the hParams array.
+		decl String:sKey[255];
+		GetArrayString(hParams, 0, sKey, sizeof(sKey));
+		RemoveFromArray(hParams, 0);
+
+		// Advance one character in the pack string,
+		// because we've just read the Key string for
+		// this object.
+		iPos++;
+
+		// Get the next entry as value
+		// This automatically increments the position!
+		new Handle:hValue = json_pack_element_(sFormat, iPos, hParams);
+
+		// Insert into object
+		json_object_set_new(hObj, sKey, hValue);
+	}
+
+	return hObj;
+}
+
+stock Handle:json_pack_element_(const String:sFormat[], &iPos, Handle:hParams) {
+	new this_char = sFormat[iPos];
+	while(this_char == 32 || this_char == 58 || this_char == 44) {
+		iPos++;
+		this_char = sFormat[iPos];
+	}
+
+	// Advance one character in the pack string
+	iPos++;
+
+	switch(this_char) {
+		case 91: {
+			// {  --> Array
+			return json_pack_array_(sFormat, iPos, hParams);
+		}
+
+		case 123: {
+			// {  --> Object
+			return json_pack_object_(sFormat, iPos, hParams);
+
+		}
+
+		case 98: {
+			// b  --> Boolean
+			new iValue = GetArrayCell(hParams, 0);
+			RemoveFromArray(hParams, 0);
+
+			return json_boolean(bool:iValue);
+		}
+
+		case 102, 114: {
+			// r,f  --> Real (Float)
+			new Float:iValue = GetArrayCell(hParams, 0);
+			RemoveFromArray(hParams, 0);
+
+			return json_real(iValue);
+		}
+
+		case 110: {
+			// n --> NULL
+			return json_null();
+		}
+
+		case 115: {
+			// s  --> String
+			decl String:sKey[255];
+			GetArrayString(hParams, 0, sKey, sizeof(sKey));
+			RemoveFromArray(hParams, 0);
+
+			return json_string(sKey);
+		}
+
+		case 105: {
+			// i  --> Integer
+			new iValue = GetArrayCell(hParams, 0);
+			RemoveFromArray(hParams, 0);
+
+			return json_integer(iValue);
+		}
+	}
+
+	SetFailState("Invalid pack String '%s'. Type '%s' not supported at %i", sFormat, this_char, iPos);
+	return json_null();
+}
+
+
+
+
+
 /**
  * Not yet implemented
  *
  * native json_object_foreach(Handle:hObj, ForEachCallback:cb);
- * native Handle:json_pack(const String:sFormat[], ...);
  * native Handle:json_unpack(const String:sFormat[], ...);
  *
  */
