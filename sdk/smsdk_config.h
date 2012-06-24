@@ -8,7 +8,7 @@
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License, version 3.0, as published by the
  * Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
@@ -41,14 +41,14 @@
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"SMJansson"
 #define SMEXT_CONF_DESCRIPTION	"JSON parser/writer"
-#define SMEXT_CONF_VERSION		"2.3.1/2"
+#define SMEXT_CONF_VERSION		"2.3.1/3"
 #define SMEXT_CONF_AUTHOR		"Thrawn2"
 #define SMEXT_CONF_URL			"http://www.sourcemod.net/"
 #define SMEXT_CONF_LOGTAG		"SMJSON"
 #define SMEXT_CONF_LICENSE		"GPL"
 #define SMEXT_CONF_DATESTRING	__DATE__
 
-/** 
+/**
  * @brief Exposes plugin's main interface.
  */
 #define SMEXT_LINK(name) SDKExtension *g_pExtensionIface = name;
@@ -57,7 +57,7 @@
  * @brief Sets whether or not this plugin required Metamod.
  * NOTE: Uncomment to enable, comment to disable.
  */
-//#define SMEXT_CONF_METAMOD		
+//#define SMEXT_CONF_METAMOD
 
 /** Enable interfaces you want to use here by uncommenting lines */
 //#define SMEXT_ENABLE_FORWARDSYS
