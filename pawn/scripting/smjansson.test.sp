@@ -18,7 +18,7 @@ public OnPluginStart() {
 
 	new bool:bStepSuccess = false;
 
-	new Handle:hTest = Test_New(100);
+	new Handle:hTest = Test_New(103);
 	Test_Ok(hTest, LibraryExists("jansson"), "Library is loaded");
 
 	new Handle:hObj = json_object();
@@ -387,6 +387,20 @@ public OnPluginStart() {
 	Test_Is_String(hTest, sBooleanObjectDump, sBooleanShouldBe, "Created JSON matches");
 
 	CloseHandle(hBooleanObject);
+
+
+	new String:sErrorMsg[255];
+	new iLine = -1;
+	new iColumn = -1;
+	new Handle:hNoObj = json_load_ex("{\"apple\": 3 \"banana\": 0, \"error\": \"missing a comma\"}", sErrorMsg, sizeof(sErrorMsg), iLine, iColumn);
+
+	if(hNoObj == INVALID_HANDLE) {
+		Test_Is(hTest, iLine, 1, "Correct error line");
+		Test_Is(hTest, iColumn, 20, "Correct error column");
+		Test_Ok(hTest, strlen(sErrorMsg) > 0, "Error message is not empty");
+	} else {
+		CloseHandle(hNoObj);
+	}
 
 
 
