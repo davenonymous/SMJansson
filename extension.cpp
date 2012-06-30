@@ -1291,8 +1291,39 @@ static cell_t Native_json_load(IPluginContext *pContext, const cell_t *params) {
 	return hndlResult;
 }
 
+//native Handle:json_load_ex(const String:sJSON[], String:sErrorText[], maxlen, &iLine, &iColumn);
+static cell_t Native_json_load_ex(IPluginContext *pContext, const cell_t *params) {
+	// Param 1
+	char *sJSON;
+	pContext->LocalToString(params[1], &sJSON);
 
-//native Handle:json_load_file(const String:sFilePath[PLATFORM_MAX_PATH], flags);
+    json_error_t error;
+    json_t *object = json_loads(sJSON, 0, &error);
+	if(!object) {
+		pContext->StringToLocalUTF8(params[2], params[3], error.text, NULL);
+
+		cell_t *pLineValue;
+		pContext->LocalToPhysAddr(params[4], &pLineValue);
+		*pLineValue = error.line;
+
+		cell_t *pColumnValue;		
+		pContext->LocalToPhysAddr(params[5], &pColumnValue);		
+		*pColumnValue = error.column;
+
+		return BAD_HANDLE;
+	}
+
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+	if(hndlResult == BAD_HANDLE) {
+		pContext->ThrowNativeError("Could not create <Object> handle.");
+	}
+
+	return hndlResult;
+}
+
+
+//native Handle:json_load_file(const String:sFilePath[PLATFORM_MAX_PATH]);
 static cell_t Native_json_load_file(IPluginContext *pContext, const cell_t *params) {
 	// Param 1
 	char *jsonfile;
@@ -1303,6 +1334,44 @@ static cell_t Native_json_load_file(IPluginContext *pContext, const cell_t *para
 
     json_error_t error;
     json_t *object = json_load_file(filePath, 0, &error);
+	if(!object) {
+		g_pSM->LogError(myself, "Error in line %d, col %d: %s", error.line, error.column, error.text);
+		return BAD_HANDLE;
+	}
+
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+
+	if(hndlResult == BAD_HANDLE) {
+		pContext->ThrowNativeError("Could not create <Object> handle.");
+	}
+
+	return hndlResult;
+}
+
+//native Handle:json_load_file_ex(const String:sFilePath[PLATFORM_MAX_PATH], String:sErrorText[], maxlen, &iLine, &iColumn);
+static cell_t Native_json_load_file_ex(IPluginContext *pContext, const cell_t *params) {
+	// Param 1
+	char *jsonfile;
+	pContext->LocalToString(params[1], &jsonfile);
+
+	char filePath[PLATFORM_MAX_PATH];
+	g_pSM->BuildPath(Path_Game, filePath, sizeof(filePath), jsonfile);
+
+    json_error_t error;
+    json_t *object = json_load_file(filePath, 0, &error);
+	if(!object) {
+		pContext->StringToLocalUTF8(params[2], params[3], error.text, NULL);
+
+		cell_t *pLineValue;
+		pContext->LocalToPhysAddr(params[4], &pLineValue);
+		*pLineValue = error.line;
+
+		cell_t *pColumnValue;		
+		pContext->LocalToPhysAddr(params[5], &pColumnValue);		
+		*pColumnValue = error.column;
+
+		return BAD_HANDLE;
+	}
 
 	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
 
@@ -1466,10 +1535,11 @@ const sp_nativeinfo_t json_natives[] =
 
 	// Decoding
 	{"json_load",								Native_json_load},
+	{"json_load_ex",							Native_json_load_ex},
 	{"json_load_file",							Native_json_load_file},
+	{"json_load_file_ex",						Native_json_load_file_ex},
 
 	// Building objects & arrays
-	//{"json_pack",								Native_json_pack},
 	//{"json_unpack",							Native_json_unpack},
 
 	{NULL,				NULL}

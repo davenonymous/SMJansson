@@ -715,6 +715,7 @@ native Float:json_number_value(Handle:hNumber);
 
 /**
  * Decodes the JSON string sJSON and returns the array or object it contains.
+ * Errors while decoding can be found in the sourcemod error log.
  *
  * @param sJSON             String containing valid JSON
 
@@ -724,16 +725,51 @@ native Float:json_number_value(Handle:hNumber);
 native Handle:json_load(const String:sJSON[]);
 
 /**
+ * Decodes the JSON string sJSON and returns the array or object it contains.
+ * This function provides additional error feedback and does not log errors
+ * to the sourcemod error log.
+ *
+ * @param sJSON             String containing valid JSON
+ * @param sErrorText        This buffer will be filled with the error
+ *                          message.
+ * @param maxlen            Size of the buffer
+ * @param iLine             This int will contain the line of the error
+ * @param iColumn           This int will contain the column of the error
+ *
+ * @return                  Handle to JSON object or array.
+ *                          or INVALID_HANDLE on error.
+ */
+native Handle:json_load_ex(const String:sJSON[], String:sErrorText[], maxlen, &iLine, &iColumn);
+
+/**
  * Decodes the JSON text in file sFilePath and returns the array or object
- * it contains
+ * it contains.
+ * Errors while decoding can be found in the sourcemod error log.
  *
  * @param sFilePath         Path to a file containing pure JSON
-
+ *
  * @return                  Handle to JSON object or array.
  *                          or INVALID_HANDLE on error.
  */
 native Handle:json_load_file(const String:sFilePath[PLATFORM_MAX_PATH]);
 
+/**
+ * Decodes the JSON text in file sFilePath and returns the array or object
+ * it contains.
+ * This function provides additional error feedback and does not log errors
+ * to the sourcemod error log.
+ *
+ * @param sFilePath         Path to a file containing pure JSON
+ * @param sErrorText        This buffer will be filled with the error
+ *                          message.
+ * @param maxlen            Size of the buffer
+ * @param iLine             This int will contain the line of the error
+ * @param iColumn           This int will contain the column of the error
+ *
+ * @return                  Handle to JSON object or array.
+ *                          or INVALID_HANDLE on error.
+ */
+native Handle:json_load_file_ex(const String:sFilePath[PLATFORM_MAX_PATH]);
 
 
 
