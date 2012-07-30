@@ -10,8 +10,8 @@
  * The JSON specification (RFC 4627) defines the following data types:
  * object, array, string, number, boolean, and null.
  * JSON types are used dynamically; arrays and objects can hold any
- * other data type, including themselves. For this reason, Jansson’s
- * type system is also dynamic in nature. There’s one Handle type to
+ * other data type, including themselves. For this reason, Janssonï¿½s
+ * type system is also dynamic in nature. Thereï¿½s one Handle type to
  * represent all JSON values, and the referenced structure knows the
  * type of the JSON value it holds.
  *
@@ -577,7 +577,7 @@ native Handle:json_null();
  * Strings
  *
  * Jansson uses UTF-8 as the character encoding. All JSON strings must
- * be valid UTF-8 (or ASCII, as it’s a subset of UTF-8). Normal null
+ * be valid UTF-8 (or ASCII, as itï¿½s a subset of UTF-8). Normal null
  * terminated C strings are used, so JSON strings may not contain
  * embedded null characters.
  *
@@ -769,7 +769,7 @@ native Handle:json_load_file(const String:sFilePath[PLATFORM_MAX_PATH]);
  * @return                  Handle to JSON object or array.
  *                          or INVALID_HANDLE on error.
  */
-native Handle:json_load_file_ex(const String:sFilePath[PLATFORM_MAX_PATH]);
+native Handle:json_load_file_ex(const String:sFilePath[PLATFORM_MAX_PATH], String:sErrorText[], maxlen, &iLine, &iColumn);
 
 
 
@@ -1038,7 +1038,7 @@ stock json_object_get_string(Handle:hObj, const String:sKey[], String:sBuffer[],
 /**
  * Pack String Rules
  *
- * Here’s the full list of format characters:
+ * Hereï¿½s the full list of format characters:
  *  n    Output a JSON null value. No argument is consumed.
  *  s    Output a JSON string, consuming one argument.
  *  b    Output a JSON bool value, consuming one argument.
