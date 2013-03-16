@@ -1273,6 +1273,7 @@ public __ext_smjansson_SetNTVOptional()
 	MarkNativeAsOptional("json_object_size");
 	MarkNativeAsOptional("json_object_get");
 	MarkNativeAsOptional("json_object_set");
+	MarkNativeAsOptional("json_object_set_new");
 	MarkNativeAsOptional("json_object_del");
 	MarkNativeAsOptional("json_object_clear");
 	MarkNativeAsOptional("json_object_update");
@@ -1285,13 +1286,17 @@ public __ext_smjansson_SetNTVOptional()
 	MarkNativeAsOptional("json_object_iter_key");
 	MarkNativeAsOptional("json_object_iter_value");
 	MarkNativeAsOptional("json_object_iter_set");
+	MarkNativeAsOptional("json_object_iter_set_new");
 
 	MarkNativeAsOptional("json_array");
 	MarkNativeAsOptional("json_array_size");
 	MarkNativeAsOptional("json_array_get");
 	MarkNativeAsOptional("json_array_set");
+	MarkNativeAsOptional("json_array_set_new");
 	MarkNativeAsOptional("json_array_append");
+	MarkNativeAsOptional("json_array_append_new");
 	MarkNativeAsOptional("json_array_insert");
+	MarkNativeAsOptional("json_array_insert_new");
 	MarkNativeAsOptional("json_array_remove");
 	MarkNativeAsOptional("json_array_clear");
 	MarkNativeAsOptional("json_array_extend");
@@ -1308,6 +1313,11 @@ public __ext_smjansson_SetNTVOptional()
 	MarkNativeAsOptional("json_real_value");
 	MarkNativeAsOptional("json_real_set");
 	MarkNativeAsOptional("json_number_value");
+
+	MarkNativeAsOptional("json_boolean");
+	MarkNativeAsOptional("json_true");
+	MarkNativeAsOptional("json_false");
+	MarkNativeAsOptional("json_null");	
 
 	MarkNativeAsOptional("json_load");
 	MarkNativeAsOptional("json_load_file");
