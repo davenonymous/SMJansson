@@ -243,7 +243,7 @@ void json_object_seed(size_t seed) {
         } while(hashtable_seed == 0);
     }
 }
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(FORCE_THREAD_UNSAFE_SEED)
 static long seed_initialized = 0;
 void json_object_seed(size_t seed) {
     uint32_t new_seed = (uint32_t)seed;
