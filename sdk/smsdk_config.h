@@ -32,7 +32,7 @@
 #ifndef _INCLUDE_SOURCEMOD_EXTENSION_CONFIG_H_
 #define _INCLUDE_SOURCEMOD_EXTENSION_CONFIG_H_
 
-#include "jansson-2.3.1/src/jansson.h"
+#include "jansson/src/jansson.h"
 /**
  * @file smsdk_config.h
  * @brief Contains macros for configuring basic extension information.
@@ -41,9 +41,9 @@
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"SMJansson"
 #define SMEXT_CONF_DESCRIPTION	"JSON parser/writer"
-#define SMEXT_CONF_VERSION		"2.3.1/3"
+#define SMEXT_CONF_VERSION		"2.6.0/1"
 #define SMEXT_CONF_AUTHOR		"Thrawn2"
-#define SMEXT_CONF_URL			"http://www.sourcemod.net/"
+#define SMEXT_CONF_URL			"https://github.com/thraaawn/SMJansson"
 #define SMEXT_CONF_LOGTAG		"SMJSON"
 #define SMEXT_CONF_LICENSE		"GPL"
 #define SMEXT_CONF_DATESTRING	__DATE__
