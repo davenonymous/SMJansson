@@ -54,22 +54,136 @@ used as described above.
 .. _libtool: http://www.gnu.org/software/libtool/
 
 
+.. _build-cmake:
+
+CMake (various platforms, including Windows)
+--------------------------------------------
+
+Jansson can be built using CMake_. Create a build directory for an
+out-of-tree build, change to that directory, and run ``cmake`` (or ``ccmake``,
+``cmake-gui``, or similar) to configure the project.
+
+See the examples below for more detailed information.
+
+.. note:: In the below examples ``..`` is used as an argument for ``cmake``.
+          This is simply the path to the jansson project root directory.
+          In the example it is assumed you've created a sub-directory ``build``
+          and are using that. You could use any path you want.
+
+.. _build-cmake-unix:
+
+Unix (Make files)
+^^^^^^^^^^^^^^^^^
+Generating make files on unix:
+
+.. parsed-literal::
+
+    bunzip2 -c jansson-|release|.tar.bz2 | tar xf -
+    cd jansson-|release|
+
+    mkdir build
+    cd build
+    cmake .. # or `ccmake ..` for a GUI.
+
+Then to build::
+    
+    make
+    make check
+    make install
+
+Windows (Visual Studio)
+^^^^^^^^^^^^^^^^^^^^^^^
+Creating Visual Studio project files from the command line:
+
+.. parsed-literal::
+
+    <unpack>
+    cd jansson-|release|
+
+    md build
+    cd build
+    cmake -G "Visual Studio 10" ..
+
+You will now have a *Visual Studio Solution* in your build directory.
+To run the unit tests build the ``RUN_TESTS`` project.
+
+If you prefer a GUI the ``cmake`` line in the above example can 
+be replaced with::
+
+    cmake-gui ..
+
+For command line help (including a list of available generators)
+for CMake_ simply run::
+
+    cmake
+
+To list available CMake_ settings (and what they are currently set to) 
+for the project, run::
+
+    cmake -LH ..
+
+Mac OSX (Xcode)
+^^^^^^^^^^^^^^^
+If you prefer using Xcode instead of make files on OSX,
+do the following. (Use the same steps as 
+for :ref:`Unix <build-cmake-unix>`)::
+
+    ...
+    cmake -G "Xcode" ..
+
+Additional CMake settings
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Shared library
+""""""""""""""
+By default the CMake_ project will generate build files for building the
+static library. To build the shared version use::
+
+    ...
+    cmake -DBUILD_SHARED=1 ..
+
+Changing install directory (same as autoconf --prefix)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Just as with the autoconf_ project you can change the destination directory
+for ``make install``. The equivalent for autoconfs ``./configure --prefix`` 
+in CMake_ is::
+
+    ...
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=/some/other/path ..
+    make install
+
+.. _CMake: http://www.cmake.org
+
+Android
+-------
+
+Jansson can be built for Android platforms. Android.mk is in the
+source root directory. The configuration header file is located in the
+``android`` directory in the source distribution.
+
+
+Windows
+-------
+
+**This method is deprecated**. Using :ref:`CMake <build-cmake>` is now
+preferred.
+
+Jansson can be built with Visual Studio 2010 (and probably newer
+versions, too). The solution and project files are in the
+``win32/vs2010/`` directory in the source distribution.
+
+
 Other Systems
 -------------
 
-On Windows and other non Unix-like systems, you may be unable to run
-the ``./configure`` script. In this case, follow these steps. All the
-files mentioned can be found in the ``src/`` directory.
+On non Unix-like systems, you may be unable to run the ``./configure``
+script. In this case, follow these steps. All the files mentioned can
+be found in the ``src/`` directory.
 
-1. Create ``jansson_config.h``. This file has some platform-specific
+1. Create ``jansson_config.h`` (which has some platform-specific
    parameters that are normally filled in by the ``./configure``
-   script:
-
-   - On Windows, rename ``jansson_config.h.win32`` to ``jansson_config.h``.
-
-   - On other systems, edit ``jansson_config.h.in``, replacing all
-     ``@variable@`` placeholders, and rename the file to
-     ``jansson_config.h``.
+   script). Edit ``jansson_config.h.in``, replacing all ``@variable@``
+   placeholders, and rename the file to ``jansson_config.h``.
 
 2. Make ``jansson.h`` and ``jansson_config.h`` available to the
    compiler, so that they can be found when compiling programs that

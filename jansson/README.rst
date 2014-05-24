@@ -1,6 +1,10 @@
 Jansson README
 ==============
 
+.. image:: https://travis-ci.org/akheron/jansson.png
+  :alt: Build status
+  :target: https://travis-ci.org/akheron/jansson
+
 Jansson_ is a C library for encoding, decoding and manipulating JSON
 data. Its main features and design principles are:
 
@@ -33,8 +37,8 @@ To run the test suite, invoke::
    $ make check
 
 If the source has been checked out from a Git repository, the
-./configure script has to be generated fist. The easiest way is to use
-autoreconf::
+./configure script has to be generated first. The easiest way is to
+use autoreconf::
 
    $ autoreconf -i
 

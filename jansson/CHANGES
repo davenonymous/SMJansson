@@ -1,3 +1,133 @@
+Version 2.6
+===========
+
+Released 2014-02-11
+
+* Security:
+
+  - CVE-2013-6401: The hash function used by the hashtable
+    implementation has been changed, and is automatically seeded with
+    random data when the first JSON object is created. This prevents
+    an attacker from causing large JSON objects with specially crafted
+    keys perform poorly.
+
+* New features:
+
+  - `json_object_seed()`: Set the seed value of the hash function.
+
+* Bug fixes:
+
+  - Include CMake specific files in the release tarball.
+
+* Documentation:
+
+  - Fix tutorial source to send a User-Agent header, which is now
+    required by the GitHub API.
+
+  - Set all memory to zero in secure_free() example.
+
+
+Version 2.5
+===========
+
+Released 2013-09-19
+
+* New features:
+
+  - `json_pack()` and friends: Add format specifiers ``s#``, ``+`` and
+    ``+#``.
+
+  - Add ``JSON_DECODE_INT_AS_REAL`` decoding flag to treat all numbers
+    as real in the decoder (#123).
+
+  - Add `json_array_foreach()`, paralleling `json_object_foreach()`
+    (#118).
+
+* Bug fixes:
+
+  - `json_dumps()` and friends: Don't crash if json is *NULL* and
+    ``JSON_ENCODE_ANY`` is set.
+
+  - Fix a theoretical integer overflow in `jsonp_strdup()`.
+
+  - Fix `l_isxdigit()` macro (#97).
+
+  - Fix an off-by-one error in `json_array_remove()`.
+
+* Build:
+
+  - Support CMake in addition to GNU Autotools (#106, #107, #112,
+    #115, #120, #127).
+
+  - Support building for Android (#109).
+
+  - Don't use ``-Werror`` by default.
+
+  - Support building and testing with VPATH (#93).
+
+  - Fix compilation when ``NDEBUG`` is defined (#128)
+
+* Tests:
+
+  - Fix a refleak in ``test/bin/json_process.c``.
+
+* Documentation:
+
+  - Clarify the return value of `json_load_callback_t`.
+
+  - Document how to circumvent problems with separate heaps on Windows.
+
+  - Fix memory leaks and warnings in ``github_commits.c``.
+
+  - Use `json_decref()` properly in tutorial.
+
+* Other:
+
+  - Make it possible to forward declare ``struct json_t``.
+
+
+Version 2.4
+===========
+
+Released 2012-09-23
+
+* New features:
+
+  - Add `json_boolean()` macro that returns the JSON true or false
+    value based on its argument (#86).
+
+  - Add `json_load_callback()` that calls a callback function
+    repeatedly to read the JSON input (#57).
+
+  - Add JSON_ESCAPE_SLASH encoding flag to escape all occurences of
+    ``/`` with ``\/``.
+
+* Bug fixes:
+
+  - Check for and reject NaN and Inf values for reals. Encoding these
+    values resulted in invalid JSON.
+
+  - Fix `json_real_set()` to return -1 on error.
+
+* Build:
+
+  - Jansson now builds on Windows with Visual Studio 2010, and
+    includes solution and project files in ``win32/vs2010/``
+    directory.
+
+  - Fix build warnings (#77, #78).
+
+  - Add ``-no-undefined`` to LDFLAGS (#90).
+
+* Tests:
+
+  - Fix the symbol exports test on Linux/PPC64 (#88).
+
+* Documentation:
+
+  - Fix typos (#73, #84).
+
+
 Version 2.3.1
 =============
 

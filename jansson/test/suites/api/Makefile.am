@@ -8,6 +8,7 @@ check_PROGRAMS = \
 	test_equal \
 	test_load \
 	test_loadb \
+	test_load_callback \
 	test_memory_funcs \
 	test_number \
 	test_object \
@@ -28,7 +29,6 @@ test_pack_SOURCES = test_pack.c util.h
 test_simple_SOURCES = test_simple.c util.h
 test_unpack_SOURCES = test_unpack.c util.h
 
-AM_CPPFLAGS = -I$(top_srcdir)/src
-AM_CFLAGS = -Wall -Werror
+AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_srcdir)/src
 LDFLAGS = -static  # for speed and Valgrind
 LDADD = $(top_builddir)/src/libjansson.la

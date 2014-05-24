@@ -1,4 +1,4 @@
-EXTRA_DIST = jansson_config.h.win32
+EXTRA_DIST = jansson.def
 
 include_HEADERS = jansson.h jansson_config.h
 
@@ -8,8 +8,10 @@ libjansson_la_SOURCES = \
 	error.c \
 	hashtable.c \
 	hashtable.h \
+	hashtable_seed.c \
 	jansson_private.h \
 	load.c \
+	lookup3.h \
 	memory.c \
 	pack_unpack.c \
 	strbuffer.c \
@@ -19,10 +21,6 @@ libjansson_la_SOURCES = \
 	utf.h \
 	value.c
 libjansson_la_LDFLAGS = \
+	-no-undefined \
 	-export-symbols-regex '^json_' \
-	-version-info 7:1:3
-
-if GCC
-# These flags are gcc specific
-AM_CFLAGS = -Wall -Wextra -Wdeclaration-after-statement -Werror
-endif
+	-version-info 10:0:6

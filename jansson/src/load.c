@@ -1,11 +1,14 @@
 /*
- * Copyright (c) 2009-2012 Petri Lehtinen <petri@digip.org>
+ * Copyright (c) 2009-2013 Petri Lehtinen <petri@digip.org>
  *
  * Jansson is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -13,7 +16,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <jansson.h>
+#include "jansson.h"
 #include "jansson_private.h"
 #include "strbuffer.h"
 #include "utf.h"
@@ -37,7 +40,7 @@
 #define l_isalpha(c)  (l_isupper(c) || l_islower(c))
 #define l_isdigit(c)  ('0' <= (c) && (c) <= '9')
 #define l_isxdigit(c) \
-    (l_isdigit(c) || 'A' <= (c) || (c) <= 'F' || 'a' <= (c) || (c) <= 'f')
+    (l_isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
 
 /* Read one byte from stream, convert to unsigned char, then int, and
    return. return EOF on end of file. This corresponds to the
@@ -87,6 +90,7 @@ static void error_set(json_error_t *error, const lex_t *lex,
 
     va_start(ap, msg);
     vsnprintf(msg_text, JSON_ERROR_TEXT_LENGTH, msg, ap);
+    msg_text[JSON_ERROR_TEXT_LENGTH - 1] = '\0';
     va_end(ap);
 
     if(lex)
@@ -102,6 +106,7 @@ static void error_set(json_error_t *error, const lex_t *lex,
             if(lex->saved_text.length <= 20) {
                 snprintf(msg_with_context, JSON_ERROR_TEXT_LENGTH,
                          "%s near '%s'", msg_text, saved_text);
+                msg_with_context[JSON_ERROR_TEXT_LENGTH - 1] = '\0';
                 result = msg_with_context;
             }
         }
@@ -114,6 +119,7 @@ static void error_set(json_error_t *error, const lex_t *lex,
             else {
                 snprintf(msg_with_context, JSON_ERROR_TEXT_LENGTH,
                          "%s near end of file", msg_text);
+                msg_with_context[JSON_ERROR_TEXT_LENGTH - 1] = '\0';
                 result = msg_with_context;
             }
         }
@@ -247,9 +253,18 @@ static void lex_unget(lex_t *lex, int c)
 static void lex_unget_unsave(lex_t *lex, int c)
 {
     if(c != STREAM_STATE_EOF && c != STREAM_STATE_ERROR) {
+        /* Since we treat warnings as errors, when assertions are turned
+         * off the "d" variable would be set but never used. Which is
+         * treated as an error by GCC.
+         */
+        #ifndef NDEBUG
         char d;
+        #endif
         stream_unget(&lex->stream, c);
-        d = strbuffer_pop(&lex->saved_text);
+        #ifndef NDEBUG
+        d = 
+        #endif
+            strbuffer_pop(&lex->saved_text);
         assert(c == d);
     }
 }
@@ -443,10 +458,16 @@ out:
     jsonp_free(lex->value.string);
 }
 
+#ifndef JANSSON_USING_CMAKE /* disabled if using cmake */
 #if JSON_INTEGER_IS_LONG_LONG
+#ifdef _MSC_VER  /* Microsoft Visual Studio */
+#define json_strtoint     _strtoi64
+#else
 #define json_strtoint     strtoll
+#endif
 #else
 #define json_strtoint     strtol
+#endif
 #endif
 
 static int lex_scan_number(lex_t *lex, int c, json_error_t *error)
@@ -763,6 +784,7 @@ error:
 static json_t *parse_value(lex_t *lex, size_t flags, json_error_t *error)
 {
     json_t *json;
+    double value;
 
     switch(lex->token) {
         case TOKEN_STRING: {
@@ -771,7 +793,15 @@ static json_t *parse_value(lex_t *lex, size_t flags, json_error_t *error)
         }
 
         case TOKEN_INTEGER: {
-            json = json_integer(lex->value.integer);
+            if (flags & JSON_DECODE_INT_AS_REAL) {
+                if(jsonp_strtod(&lex->saved_text, &value)) {
+                    error_set(error, lex, "real number overflow");
+                    return NULL;
+                }
+                json = json_real(value);
+            } else {
+                json = json_integer(lex->value.integer);
+            }
             break;
         }
 
@@ -988,5 +1018,60 @@ json_t *json_load_file(const char *path, size_t flags, json_error_t *error)
     result = json_loadf(fp, flags, error);
 
     fclose(fp);
+    return result;
+}
+
+#define MAX_BUF_LEN 1024
+
+typedef struct
+{
+    char data[MAX_BUF_LEN];
+    size_t len;
+    size_t pos;
+    json_load_callback_t callback;
+    void *arg;
+} callback_data_t;
+
+static int callback_get(void *data)
+{
+    char c;
+    callback_data_t *stream = data;
+
+    if(stream->pos >= stream->len) {
+        stream->pos = 0;
+        stream->len = stream->callback(stream->data, MAX_BUF_LEN, stream->arg);
+        if(stream->len == 0 || stream->len == (size_t)-1)
+            return EOF;
+    }
+
+    c = stream->data[stream->pos];
+    stream->pos++;
+    return (unsigned char)c;
+}
+
+json_t *json_load_callback(json_load_callback_t callback, void *arg, size_t flags, json_error_t *error)
+{
+    lex_t lex;
+    json_t *result;
+
+    callback_data_t stream_data;
+
+    memset(&stream_data, 0, sizeof(stream_data));
+    stream_data.callback = callback;
+    stream_data.arg = arg;
+
+    jsonp_error_init(error, "<callback>");
+
+    if (callback == NULL) {
+        error_set(error, NULL, "wrong arguments");
+        return NULL;
+    }
+
+    if(lex_init(&lex, (get_func)callback_get, &stream_data))
+        return NULL;
+
+    result = parse_json(&lex, flags, error);
+
+    lex_close(&lex);
     return result;
 }

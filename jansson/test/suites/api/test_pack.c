@@ -1,10 +1,16 @@
 /*
- * Copyright (c) 2009-2012 Petri Lehtinen <petri@digip.org>
+ * Copyright (c) 2009-2013 Petri Lehtinen <petri@digip.org>
  * Copyright (c) 2010-2012 Graeme Smecher <graeme.smecher@mail.mcgill.ca>
  *
  * Jansson is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
  */
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <jansson_config.h>
 
 #include <string.h>
 #include <jansson.h>
@@ -15,17 +21,17 @@ static void run_tests()
 {
     json_t *value;
     int i;
+    char buffer[4] = {'t', 'e', 's', 't'};
     json_error_t error;
 
     /*
      * Simple, valid json_pack cases
      */
-
     /* true */
     value = json_pack("b", 1);
     if(!json_is_true(value))
         fail("json_pack boolean failed");
-    if(value->refcount != (ssize_t)-1)
+    if(value->refcount != (size_t)-1)
         fail("json_pack boolean refcount failed");
     json_decref(value);
 
@@ -33,7 +39,7 @@ static void run_tests()
     value = json_pack("b", 0);
     if(!json_is_false(value))
         fail("json_pack boolean failed");
-    if(value->refcount != (ssize_t)-1)
+    if(value->refcount != (size_t)-1)
         fail("json_pack boolean refcount failed");
     json_decref(value);
 
@@ -41,7 +47,7 @@ static void run_tests()
     value = json_pack("n");
     if(!json_is_null(value))
         fail("json_pack null failed");
-    if(value->refcount != (ssize_t)-1)
+    if(value->refcount != (size_t)-1)
         fail("json_pack null refcount failed");
     json_decref(value);
 
@@ -49,7 +55,7 @@ static void run_tests()
     value = json_pack("i", 1);
     if(!json_is_integer(value) || json_integer_value(value) != 1)
         fail("json_pack integer failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack integer refcount failed");
     json_decref(value);
 
@@ -57,7 +63,7 @@ static void run_tests()
     value = json_pack("I", (json_int_t)555555);
     if(!json_is_integer(value) || json_integer_value(value) != 555555)
         fail("json_pack json_int_t failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack integer refcount failed");
     json_decref(value);
 
@@ -65,7 +71,7 @@ static void run_tests()
     value = json_pack("f", 1.0);
     if(!json_is_real(value) || json_real_value(value) != 1.0)
         fail("json_pack real failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack real refcount failed");
     json_decref(value);
 
@@ -73,15 +79,47 @@ static void run_tests()
     value = json_pack("s", "test");
     if(!json_is_string(value) || strcmp("test", json_string_value(value)))
         fail("json_pack string failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack string refcount failed");
+    json_decref(value);
+
+    /* string and length */
+    value = json_pack("s#", "test asdf", 4);
+    if(!json_is_string(value) || strcmp("test", json_string_value(value)))
+        fail("json_pack string and length failed");
+    if(value->refcount != (size_t)1)
+        fail("json_pack string and length refcount failed");
+    json_decref(value);
+
+    /* string and length, non-NUL terminated string */
+    value = json_pack("s#", buffer, 4);
+    if(!json_is_string(value) || strcmp("test", json_string_value(value)))
+        fail("json_pack string and length failed");
+    if(value->refcount != (size_t)1)
+        fail("json_pack string and length refcount failed");
+    json_decref(value);
+
+    /* string concatenation */
+    value = json_pack("s++", "te", "st", "ing");
+    if(!json_is_string(value) || strcmp("testing", json_string_value(value)))
+        fail("json_pack string concatenation failed");
+    if(value->refcount != (size_t)1)
+        fail("json_pack string concatenation refcount failed");
+    json_decref(value);
+
+    /* string concatenation and length */
+    value = json_pack("s#+#+", "test", 1, "test", 2, "test");
+    if(!json_is_string(value) || strcmp("ttetest", json_string_value(value)))
+        fail("json_pack string concatenation and length failed");
+    if(value->refcount != (size_t)1)
+        fail("json_pack string concatenation and length refcount failed");
     json_decref(value);
 
     /* empty object */
     value = json_pack("{}", 1.0);
     if(!json_is_object(value) || json_object_size(value) != 0)
         fail("json_pack empty object failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack empty object refcount failed");
     json_decref(value);
 
@@ -89,7 +127,7 @@ static void run_tests()
     value = json_pack("[]", 1.0);
     if(!json_is_array(value) || json_array_size(value) != 0)
         fail("json_pack empty list failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack empty list failed");
     json_decref(value);
 
@@ -97,7 +135,7 @@ static void run_tests()
     value = json_pack("o", json_integer(1));
     if(!json_is_integer(value) || json_integer_value(value) != 1)
         fail("json_pack object failed");
-    if(value->refcount != (ssize_t)1)
+    if(value->refcount != (size_t)1)
         fail("json_pack integer refcount failed");
     json_decref(value);
 
@@ -105,7 +143,7 @@ static void run_tests()
     value = json_pack("O", json_integer(1));
     if(!json_is_integer(value) || json_integer_value(value) != 1)
         fail("json_pack object failed");
-    if(value->refcount != (ssize_t)2)
+    if(value->refcount != (size_t)2)
         fail("json_pack integer refcount failed");
     json_decref(value);
     json_decref(value);
@@ -116,7 +154,17 @@ static void run_tests()
         fail("json_pack array failed");
     if(!json_is_array(json_object_get(value, "foo")))
         fail("json_pack array failed");
-    if(json_object_get(value, "foo")->refcount != (ssize_t)1)
+    if(json_object_get(value, "foo")->refcount != (size_t)1)
+        fail("json_pack object refcount failed");
+    json_decref(value);
+
+    /* object with complex key */
+    value = json_pack("{s+#+: []}", "foo", "barbar", 3, "baz");
+    if(!json_is_object(value) || json_object_size(value) != 1)
+        fail("json_pack array failed");
+    if(!json_is_array(json_object_get(value, "foobarbaz")))
+        fail("json_pack array failed");
+    if(json_object_get(value, "foobarbaz")->refcount != (size_t)1)
         fail("json_pack object refcount failed");
     json_decref(value);
 
@@ -193,6 +241,11 @@ static void run_tests()
         fail("json_pack failed to catch null argument string");
     check_error("NULL string argument", "<args>", 1, 1, 1);
 
+    /* + on its own */
+    if(json_pack_ex(&error, 0, "+", NULL))
+        fail("json_pack failed to a lone +");
+    check_error("Unexpected format character '+'", "<format>", 1, 1, 1);
+
     /* NULL format */
     if(json_pack_ex(&error, 0, NULL))
         fail("json_pack failed to catch NULL format string");
@@ -201,7 +254,7 @@ static void run_tests()
     /* NULL key */
     if(json_pack_ex(&error, 0, "{s:i}", NULL, 1))
         fail("json_pack failed to catch NULL key");
-    check_error("NULL object key", "<args>", 1, 2, 2);
+    check_error("NULL string argument", "<args>", 1, 2, 2);
 
     /* More complicated checks for row/columns */
     if(json_pack_ex(&error, 0, "{ {}: s }", "foo"))
@@ -221,7 +274,7 @@ static void run_tests()
     /* Invalid UTF-8 in object key */
     if(json_pack_ex(&error, 0, "{s:i}", "\xff\xff", 42))
         fail("json_pack failed to catch invalid UTF-8 in an object key");
-    check_error("Invalid UTF-8 in object key", "<args>", 1, 2, 2);
+    check_error("Invalid UTF-8 object key", "<args>", 1, 2, 2);
 
     /* Invalid UTF-8 in a string */
     if(json_pack_ex(&error, 0, "{s:s}", "foo", "\xff\xff"))

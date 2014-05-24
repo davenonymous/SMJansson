@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 Petri Lehtinen <petri@digip.org>
+ * Copyright (c) 2009-2013 Petri Lehtinen <petri@digip.org>
  *
  * Jansson is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
@@ -8,6 +8,29 @@
 #include <jansson.h>
 #include <string.h>
 #include "util.h"
+
+static int encode_null_callback(const char *buffer, size_t size, void *data)
+{
+    (void)buffer;
+    (void)size;
+    (void)data;
+    return 0;
+}
+
+static void encode_null()
+{
+    if(json_dumps(NULL, JSON_ENCODE_ANY) != NULL)
+        fail("json_dumps didn't fail for NULL");
+
+    if(json_dumpf(NULL, stderr, JSON_ENCODE_ANY) != -1)
+        fail("json_dumpf didn't fail for NULL");
+
+    /* Don't test json_dump_file to avoid creating a file */
+
+    if(json_dump_callback(NULL, encode_null_callback, NULL, JSON_ENCODE_ANY) != -1)
+        fail("json_dump_callback didn't fail for NULL");
+}
+
 
 static void encode_twice()
 {
@@ -133,9 +156,35 @@ static void encode_other_than_array_or_object()
 
 }
 
+static void escape_slashes()
+{
+    /* Test dump escaping slashes */
+
+    json_t *json;
+    char *result;
+
+    json = json_object();
+    json_object_set_new(json, "url", json_string("https://github.com/akheron/jansson"));
+
+    result = json_dumps(json, 0);
+    if(!result || strcmp(result, "{\"url\": \"https://github.com/akheron/jansson\"}"))
+        fail("json_dumps failed to not escape slashes");
+
+    free(result);
+
+    result = json_dumps(json, JSON_ESCAPE_SLASH);
+    if(!result || strcmp(result, "{\"url\": \"https:\\/\\/github.com\\/akheron\\/jansson\"}"))
+        fail("json_dumps failed to escape slashes");
+
+    free(result);
+    json_decref(json);
+}
+
 static void run_tests()
 {
+    encode_null();
     encode_twice();
     circular_references();
     encode_other_than_array_or_object();
+    escape_slashes();
 }
