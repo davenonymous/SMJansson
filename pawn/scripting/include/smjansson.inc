@@ -55,24 +55,24 @@ native json_type:json_typeof(Handle:hObj);
 #define json_is_boolean(%1)			( json_typeof(%1) == JSON_TRUE || json_typeof(%1) == JSON_FALSE )
 
 /**
- * Saves json_type as a String in out
+ * Saves json_type as a String in output
  *
- * @param in                json_type value to convert to string
- * @param out               Buffer to store the json_type value
+ * @param input             json_type value to convert to string
+ * @param output            Buffer to store the json_type value
  * @param maxlength         Maximum length of string buffer.
  *
  * @return                  False if the type does not exist.
  */
-stock bool:Stringify_json_type(json_type:in, String:out[], maxlength) {
-	switch(in) {
-		case JSON_OBJECT:		strcopy(out, maxlength, "Object");
-		case JSON_ARRAY:		strcopy(out, maxlength, "Array");
-		case JSON_STRING:		strcopy(out, maxlength, "String");
-		case JSON_INTEGER:		strcopy(out, maxlength, "Integer");
-		case JSON_REAL:			strcopy(out, maxlength, "Real");
-		case JSON_TRUE:			strcopy(out, maxlength, "True");
-		case JSON_FALSE:		strcopy(out, maxlength, "False");
-		case JSON_NULL:			strcopy(out, maxlength, "Null");
+stock bool:Stringify_json_type(json_type:input, String:output[], maxlength) {
+	switch(input) {
+		case JSON_OBJECT:		strcopy(output, maxlength, "Object");
+		case JSON_ARRAY:		strcopy(output, maxlength, "Array");
+		case JSON_STRING:		strcopy(output, maxlength, "String");
+		case JSON_INTEGER:		strcopy(output, maxlength, "Integer");
+		case JSON_REAL:			strcopy(output, maxlength, "Real");
+		case JSON_TRUE:			strcopy(output, maxlength, "True");
+		case JSON_FALSE:		strcopy(output, maxlength, "False");
+		case JSON_NULL:			strcopy(output, maxlength, "Null");
 		default: return false;
 	}
 
