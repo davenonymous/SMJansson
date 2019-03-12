@@ -1,75 +1,75 @@
-stock bool:Test_SetFilename(Handle:hTest, const String:value[]) {
-	return SetTrieString(hTest, "filename", value);
+stock bool Test_SetFilename(StringMap hTest, const char[] value) {
+	return hTest.SetString("filename", value);
 }
 
-stock bool:Test_GetFilename(Handle:hTest, String:value[], max_size) {
-	return GetTrieString(hTest, "filename", value, max_size);
+stock bool Test_GetFilename(StringMap hTest, char[] value, int max_size) {
+	return hTest.GetString("filename", value, max_size);
 }
 
-stock bool:Test_SetFails(Handle:hTest, value) {
-	return SetTrieValue(hTest, "fails", value);
+stock bool Test_SetFails(StringMap hTest, int value) {
+	return hTest.SetValue("fails", value);
 }
 
-stock bool:Test_GetFails(Handle:hTest, &value) {
-	return GetTrieValue(hTest, "fails", value);
+stock bool Test_GetFails(StringMap hTest, int &value) {
+	return hTest.GetValue("fails", value);
 }
 
-stock bool:Test_SetTests(Handle:hTest, value) {
-	return SetTrieValue(hTest, "tests", value);
+stock bool Test_SetTests(StringMap hTest, int value) {
+	return hTest.SetValue("tests", value);
 }
 
-stock bool:Test_GetTests(Handle:hTest, &value) {
-	return GetTrieValue(hTest, "tests", value);
+stock bool Test_GetTests(StringMap hTest, int &value) {
+	return hTest.GetValue("tests", value);
 }
 
-stock bool:Test_SetFile(Handle:hTest, Handle:value) {
-	return SetTrieValue(hTest, "file", value);
+stock bool Test_SetFile(StringMap hTest, Handle value) {
+	return hTest.SetValue("file", value);
 }
 
-stock bool:Test_GetFile(Handle:hTest, &Handle:value) {
-	return GetTrieValue(hTest, "file", value);
+stock bool Test_GetFile(StringMap hTest, Handle &value) {
+	return hTest.GetValue("file", value);
 }
 
-stock bool:Test_SetProcessed(Handle:hTest, value) {
-	return SetTrieValue(hTest, "processed", value);
+stock bool Test_SetProcessed(StringMap hTest, int value) {
+	return hTest.SetValue("processed", value);
 }
 
-stock bool:Test_GetProcessed(Handle:hTest, &value) {
-	return GetTrieValue(hTest, "processed", value);
+stock bool Test_GetProcessed(StringMap hTest, int &value) {
+	return hTest.GetValue("processed", value);
 }
 
-stock Test_Inherit(Handle:hObj, count) {
-	new tests;
+stock void Test_Inherit(StringMap hObj, int count) {
+	int tests;
 	Test_GetTests(hObj, tests);
-	new Handle:file;
+	File file;
 	Test_GetFile(hObj, file);
 
 	tests = count;
-	file = INVALID_HANDLE;
+	file = null;
 
 	Test_SetTests(hObj, tests);
 	Test_SetFile(hObj, file);
 
 }
 
-stock Handle:Test_New(count) {
-	new Handle:hObj = CreateTrie();
+stock StringMap Test_New(int count) {
+	StringMap hObj = new StringMap();
 	Test_Inherit(hObj, count);
 	return hObj;
 }
 
-stock Test_Deherit(Handle:hObj) {
+stock void Test_Deherit(StringMap hObj) {
 
 }
 
-stock Test_Destroy(Handle:hObj) {
+stock void Test_Destroy(StringMap hObj) {
 	Test_Deherit(hObj);
 
-	CloseHandle(hObj);
+	delete hObj;
 }
 
-stock Test_Pass(Handle:hTest, const String:sTest[]) {
-	new processed;
+stock void Test_Pass(StringMap hTest, const char[] sTest) {
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
 	Test_LogThis(hTest, "ok %i - %s", processed, sTest);
@@ -80,10 +80,10 @@ stock Test_Pass(Handle:hTest, const String:sTest[]) {
 
 }
 
-stock Test_Fail(Handle:hTest, const String:sTest[]) {
-	new fails;
+stock void Test_Fail(StringMap hTest, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
 	Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
@@ -96,15 +96,16 @@ stock Test_Fail(Handle:hTest, const String:sTest[]) {
 
 }
 
-stock Test_Is_String(Handle:hTest, const String:got[], const String:expected[], const String:sTest[]) {
-	new fails;
+stock void Test_Is_String(StringMap hTest, const char[] got, const char[] expected, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	if(StrEqual(got, expected)) {
+	if (StrEqual(got, expected)) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		Test_LogThis(hTest, "#          got: '%s'", got);
@@ -119,15 +120,16 @@ stock Test_Is_String(Handle:hTest, const String:got[], const String:expected[], 
 
 }
 
-stock Test_Is(Handle:hTest, any:got, any:expected, const String:sTest[]) {
-	new fails;
+stock void Test_Is(StringMap hTest, any got, any expected, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	if(got == expected) {
+	if (got == expected) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		Test_LogThis(hTest, "#          got: '%i'", got);
@@ -141,15 +143,16 @@ stock Test_Is(Handle:hTest, any:got, any:expected, const String:sTest[]) {
 	Test_SetProcessed(hTest, processed);
 }
 
-stock Test_IsNot(Handle:hTest, any:got, any:expected, const String:sTest[]) {
-	new fails;
+stock void Test_IsNot(StringMap hTest, any got, any expected, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	if(got != expected) {
+	if (got != expected) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		Test_LogThis(hTest, "#          got: '%i'", got);
@@ -163,41 +166,42 @@ stock Test_IsNot(Handle:hTest, any:got, any:expected, const String:sTest[]) {
 	Test_SetProcessed(hTest, processed);
 }
 
-stock Test_End(Handle:hTest) {
-	new tests;
+stock void Test_End(StringMap hTest) {
+	int tests;
 	Test_GetTests(hTest, tests);
-	new fails;
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
-	new Handle:file;
+	File file;
 	Test_GetFile(hTest, file);
 
-	if(tests > processed) {
+	if (tests > processed) {
 		Test_LogThis(hTest, "# Looks like you planned to run %i tests, but only ran %i.", tests, processed);
 	}
 
-	if(tests < processed) {
+	if (tests < processed) {
 		Test_LogThis(hTest, "# Looks like you ran %i more tests than you originally planned.", processed - tests);
 	}
 
 	Test_LogThis(hTest, "# You ran %i of %i tests, %i failed, %i passed", processed, tests, fails, processed - fails);
-	if(file != INVALID_HANDLE) {
-		CloseHandle(file);
+	if (file != null) {
+		delete file;
 	}
 
 
 }
 
-stock Test_Ok(Handle:hTest, bool:bOk, const String:sTest[]) {
-	new fails;
+stock void Test_Ok(StringMap hTest, bool bOk, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	if(bOk) {
+	if (bOk) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		fails++;
@@ -208,15 +212,16 @@ stock Test_Ok(Handle:hTest, bool:bOk, const String:sTest[]) {
 	Test_SetProcessed(hTest, processed);
 }
 
-stock Test_OkNot(Handle:hTest, bool:bOkNot, const String:sTest[]) {
-	new fails;
+stock void Test_OkNot(StringMap hTest, bool bOkNot, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	if(!bOkNot) {
+	if (!bOkNot) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		fails++;
@@ -227,15 +232,16 @@ stock Test_OkNot(Handle:hTest, bool:bOkNot, const String:sTest[]) {
 	Test_SetProcessed(hTest, processed);
 }
 
-stock Test_Is_Float(Handle:hTest, Float:got, Float:expected, const String:sTest[]) {
-	new fails;
+stock void Test_Is_Float(StringMap hTest, float got, float expected, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	if(got == expected) {
+	if (got == expected) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		Test_LogThis(hTest, "#          got: '%f'", got);
@@ -251,16 +257,17 @@ stock Test_Is_Float(Handle:hTest, Float:got, Float:expected, const String:sTest[
 
 }
 
-stock Test_Like(Handle:hTest, const String:got[], const String:pattern[], const String:sTest[]) {
-	new fails;
+stock void Test_Like(StringMap hTest, const char[] got, const char[] pattern, const char[] sTest) {
+	int fails;
 	Test_GetFails(hTest, fails);
-	new processed;
+	int processed;
 	Test_GetProcessed(hTest, processed);
 
-	new Handle:hRegEx = CompileRegex(pattern);
-	if(MatchRegex(hRegEx, got) > 0) {
+	Regex hRegEx = new Regex(pattern);
+	if (hRegEx.Match(got) > 0) {
 		Test_LogThis(hTest, "ok %i - %s", processed, sTest);
-	} else {
+	}
+	else {
 		Test_LogThis(hTest, "not ok %i - %s", processed, sTest);
 		Test_LogThis(hTest, "#   Failed test '%s'", sTest);
 		Test_LogThis(hTest, "#          got: '%s'", got);
@@ -268,7 +275,7 @@ stock Test_Like(Handle:hTest, const String:got[], const String:pattern[], const 
 		fails++;
 	}
 
-	CloseHandle(hRegEx);
+	delete hRegEx;
 
 	processed++;
 
@@ -277,23 +284,24 @@ stock Test_Like(Handle:hTest, const String:got[], const String:pattern[], const 
 
 }
 
-stock Test_LogThis(Handle:hTest, const String:format[], any:...) {
-	new String:filename[PLATFORM_MAX_PATH];
+stock void Test_LogThis(StringMap hTest, const char[] format, any ...) {
+	char filename[PLATFORM_MAX_PATH];
 	Test_GetFilename(hTest, filename, PLATFORM_MAX_PATH);
-	new Handle:file;
+	File file;
 	Test_GetFile(hTest, file);
 
-	new String:sMessage[255];
+	char sMessage[255];
 	VFormat(sMessage, sizeof(sMessage), format, 3);
 
-	if(StrEqual(filename, "")) {
+	if (StrEqual(filename, "")) {
 		PrintToServer(sMessage);
-	} else {
-		if(file == INVALID_HANDLE) {
+	}
+	else {
+		if (file == null) {
 			file = OpenFile(filename, "a");
 		}
 
-		WriteFileLine(file, sMessage);
+		file.WriteLine(sMessage);
 	}
 
 	Test_SetFile(hTest, file);

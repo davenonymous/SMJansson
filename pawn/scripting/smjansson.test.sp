@@ -3,7 +3,7 @@
 #include <smjansson>
 #include <test>
 
-#define VERSION 		"0.0.1"
+#define VERSION 		"0.0.2"
 
 
 public Plugin myinfo = {
@@ -25,7 +25,7 @@ public void OnPluginStart() {
 	Test_IsNot(hTest, hObj, INVALID_HANDLE, "Creating JSON Object");
 	Test_Ok(hTest, json_is_object(hObj), "Type is Object");
 
-	Handle hString =  json_string("value");
+	Handle hString = json_string("value");
 	Test_IsNot(hTest, hString, INVALID_HANDLE, "Creating JSON String");
 	Test_Ok(hTest, json_is_string(hString), "Type is String");
 
