@@ -870,7 +870,7 @@ stock Handle json_string_format(const char[] sFormat, any ...) {
  * @return                  Handle to the new String object
  */
 stock Handle json_string_format_ex(int tmpBufferLength, const char[] sFormat, any ...) {
-	char sTmp[tmpBufferLength];
+	char[] sTmp = new char[tmpBufferLength];
 	VFormat(sTmp, sizeof(sTmp), sFormat, 3);
 
 	return json_string(sTmp);
