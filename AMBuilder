@@ -1,0 +1,58 @@
+# vim: set sts=2 ts=8 sw=2 tw=99 et ft=python:
+import os
+
+projectName = 'smjansson'
+
+for cxx in builder.targets:
+  for sdk_name in SM.sdks:
+    sdk = SM.sdks[sdk_name]
+
+    if not cxx.target.arch in sdk.platformSpec[cxx.target.platform]:
+      continue
+
+    sdk.ext = "." + sdk.ext
+    if "sdk2013" in sdk.ext:
+      sdk.ext = ""
+
+    binary = SM.HL2Library(builder, cxx, projectName + ".ext" + sdk.ext, sdk)
+
+    binary.compiler.defines += [
+      'HAVE_STRING_H',
+      'SOURCEMOD_BUILD'
+    ]
+
+    if cxx.target.platform == 'linux':
+      cxx.postlink += ['-lpthread', '-lrt']
+    elif cxx.target.platform == 'mac':
+      cxx.cflags += ['-Wno-deprecated-declarations']
+      cxx.postlink += ['-framework', 'CoreServices']
+
+    if cxx.family == 'gcc' or cxx.family == 'clang':
+      cxx.cxxflags += ['-fno-rtti']
+    elif cxx.family == 'msvc':
+      cxx.cxxflags += ['/GR-']
+
+    binary.sources += [
+      'extension.cpp',
+      os.path.join(SM.jansson_root, 'src', 'dump.c'),
+      os.path.join(SM.jansson_root, 'src', 'error.c'),
+      os.path.join(SM.jansson_root, 'src', 'hashtable.c'),
+      os.path.join(SM.jansson_root, 'src', 'load.c'),
+      os.path.join(SM.jansson_root, 'src', 'memory.c'),
+      os.path.join(SM.jansson_root, 'src', 'pack_unpack.c'),
+      os.path.join(SM.jansson_root, 'src', 'strbuffer.c'),
+      os.path.join(SM.jansson_root, 'src', 'strconv.c'),
+      os.path.join(SM.jansson_root, 'src', 'utf.c'),
+      os.path.join(SM.jansson_root, 'src', 'value.c'),
+      os.path.join(SM.sm_root, 'extensions', 'sm-ext-common', 'mathstubs.c'),
+      os.path.join(SM.sm_root, 'public', 'smsdk_ext.cpp'),
+      os.path.join(SM.sm_root, 'public', 'asm', 'asm.c'),
+      os.path.join(SM.sm_root, 'public', 'libudis86', 'decode.c'),
+      os.path.join(SM.sm_root, 'public', 'libudis86', 'itab.c'),
+      os.path.join(SM.sm_root, 'public', 'libudis86', 'syn-att.c'),
+      os.path.join(SM.sm_root, 'public', 'libudis86', 'syn-intel.c'),
+      os.path.join(SM.sm_root, 'public', 'libudis86', 'syn.c'),
+      os.path.join(SM.sm_root, 'public', 'libudis86', 'udis86.c'),
+    ]
+
+    SM.extensions += [builder.Add(binary)]
