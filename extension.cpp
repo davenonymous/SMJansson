@@ -1414,7 +1414,9 @@ static cell_t Native_json_dump(IPluginContext *pContext, const cell_t *params) {
 	char *result = json_dumps(object, flags);
 	if(result != NULL) {
 		pContext->StringToLocalUTF8(params[2], params[3], result, NULL);
-		return strlen(result);
+		size_t length = strlen(result);
+		free(result);
+		return length;
 	}
 
 	return -1;
