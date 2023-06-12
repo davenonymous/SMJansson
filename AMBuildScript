@@ -251,7 +251,7 @@ class ExtensionConfig(object):
       '-pipe',
       '-fno-strict-aliasing',
       '-Wall',
-      '-Werror',
+      #'-Werror',
       '-Wno-unused',
       '-Wno-switch',
       '-Wno-array-bounds',
@@ -463,8 +463,10 @@ class ExtensionConfig(object):
       os.path.join(self.sm_root, 'public', 'amtl', 'amtl'),
       os.path.join(self.sm_root, 'public', 'amtl'),
       os.path.join(self.sm_root, 'extensions', 'sm-ext-common', 'include'),
-      os.path.join(self.jansson_root, 'src'),
     ]
+    compiler.includes += [
+      os.path.join(self.jansson_root, 'src'),
+    ]    
     return compiler
 
   def ExtLibrary(self, context, compiler, name):
