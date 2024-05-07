@@ -1,0 +1,13 @@
+# vim swap files
+*.swp
+
+# build folder
+build/*
+
+# hl2sdk-manifest link
+hl2sdk-manifests
+
+# include build commands
+!build/build
+!build/clean
+

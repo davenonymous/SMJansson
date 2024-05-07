@@ -12,7 +12,7 @@ folder_list = [
   'addons/sourcemod/scripting',
 ]
 
-if 'x86_64' in SM.target_archs:
+if 'x86_64' in Extension.target_archs:
   folder_list.extend([
     'addons/sourcemod/extensions/x64',
   ])
@@ -24,7 +24,7 @@ for folder in folder_list:
   folder_map[folder] = builder.AddFolder(norm_folder)
 
 # Copy binaries.
-for cxx_task in SM.extensions:
+for cxx_task in Extension.extensions:
   if cxx_task.target.arch == 'x86_64':
     builder.AddCopy(cxx_task.binary, folder_map['addons/sourcemod/extensions/x64'])
   else:
