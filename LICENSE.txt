@@ -1,0 +1,44 @@
+SMJANSSON LICENSE INFORMATION
+-----------------------------
+
+SMJansson is Copyright (C) 2012-2026 davenonymous and the SMJansson contributors.
+
+SMJansson is licensed under the same terms as SourceMod: the GNU General Public
+License, version 3, with the special exceptions below. The exceptions are worded
+as AlliedModders LLC grants them for SourceMod (SourceMod's LICENSE.txt, version
+2019-9-30); for the code of SMJansson, the SMJansson authors grant them.
+
+As a special exception, the SMJansson authors give you permission to link the
+code of this program (as well as its derivative works) to "Half-Life 2," the
+"Source Engine" and any Game MODs that run on software by the Valve Corporation.
+You must obey the GNU General Public License in all respects for all other code
+used. Additionally, the SMJansson authors grant this exception to all derivative
+works.
+
+As an additional special exception to the GNU General Public License 3.0, the
+SMJansson authors permit dual-licensing of DERIVATIVE WORKS ONLY (that is,
+SourcePawn/SourceMod Plugins and SourceMod Extensions, or any software built
+from the SMJansson include files) under the GNU General Public License version 2
+"or any higher version." As such, you may choose for your derivative work(s) to
+be compatible with the GNU General Public License version 2 as long as it is
+also compatible with the GNU General Public License version 3, via the "or any
+higher version" clause. This is intended for compatibility with other software.
+
+A copy of the GNU General Public License 2.0 is available in licenses/GPLv2.txt.
+A copy of the GNU General Public License 3.0 is available in licenses/GPLv3.txt.
+
+THIRD-PARTY CODE
+----------------
+
+The code taken from the SourceMod SDK and its sample extension (sdk/ and the
+sample extension parts of extension.cpp and extension.h) is Copyright (C)
+2004-2008 AlliedModders LLC and is licensed under SourceMod's license, as stated
+in the file headers. See https://www.sourcemod.net/license.php.
+
+Jansson, in the jansson/ directory, is Copyright (c) 2009-2013 Petri Lehtinen
+and is licensed under the MIT license. See jansson/LICENSE.
+
+SourceMod is Copyright (C) 2006-2008 AlliedModders LLC. All rights reserved.
+Source is Copyright (C) Valve Corporation.
+All trademarks are property of their respective owners in the US and other
+countries.
