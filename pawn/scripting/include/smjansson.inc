@@ -45,7 +45,7 @@ native json_type json_typeof(Handle hObj);
  * The type of a JSON value is queried and tested using these macros.
  * They call json_typeof(), so they raise the same errors: they can not
  * be used to test whether a Handle is INVALID_HANDLE.
- * json_is_true() is the way to read the value of a JSON boolean.
+ * Read the value of a JSON boolean with json_boolean_value().
  *
  * @param %1                Handle to the JSON value
  *
@@ -61,6 +61,16 @@ native json_type json_typeof(Handle hObj);
 #define json_is_null(%1)			( json_typeof(%1) == JSON_NULL )
 #define json_is_number(%1)			( json_typeof(%1) == JSON_INTEGER || json_typeof(%1) == JSON_REAL )
 #define json_is_boolean(%1)			( json_typeof(%1) == JSON_TRUE || json_typeof(%1) == JSON_FALSE )
+
+/**
+ * Returns the value of a JSON boolean: true for JSON true, false for
+ * every other value. An alias of json_is_true() with the same errors.
+ *
+ * @param %1                Handle to the JSON value
+ *
+ * @return                  True if the value is JSON true.
+ */
+#define json_boolean_value(%1)		json_is_true(%1)
 
 /**
  * Saves json_type as a String in output
@@ -311,6 +321,67 @@ native bool json_object_update_existing(Handle hObj, Handle hOther);
  */
 native bool json_object_update_missing(Handle hObj, Handle hOther);
 
+/**
+ * Like json_object_update(), but on success this function closes the
+ * Handle hOther; do not use it afterwards. On failure hOther is not
+ * closed.
+ *
+ * @param hObj              Handle to JSON object to update
+ * @param hOther            Handle to JSON object to get update
+ *                          keys/values from.
+ *
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
+ */
+native bool json_object_update_new(Handle hObj, Handle hOther);
+
+/**
+ * Like json_object_update_existing(), but on success this function closes
+ * the Handle hOther; do not use it afterwards. On failure hOther is not
+ * closed.
+ *
+ * @param hObj              Handle to JSON object to update
+ * @param hOther            Handle to JSON object to get update
+ *                          keys/values from.
+ *
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
+ */
+native bool json_object_update_existing_new(Handle hObj, Handle hOther);
+
+/**
+ * Like json_object_update_missing(), but on success this function closes
+ * the Handle hOther; do not use it afterwards. On failure hOther is not
+ * closed.
+ *
+ * @param hObj              Handle to JSON object to update
+ * @param hOther            Handle to JSON object to get update
+ *                          keys/values from.
+ *
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
+ */
+native bool json_object_update_missing_new(Handle hObj, Handle hOther);
+
+/**
+ * Like json_object_update(), but merges nested objects: where a key holds
+ * an object in both hObj and hOther, that object is updated recursively
+ * instead of being replaced. All other values of hOther overwrite the
+ * values in hObj. The values are shared with hOther, not copied.
+ *
+ * @param hObj              Handle to JSON object to update
+ * @param hOther            Handle to JSON object to get update
+ *                          keys/values from.
+ *
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
+ */
+native bool json_object_update_recursive(Handle hObj, Handle hOther);
+
 
 
 
@@ -326,8 +397,8 @@ native bool json_object_update_missing(Handle hObj, Handle hOther);
  *
  * Do not add or delete keys of the object while iterating over it.
  * Changing the value at the iterator with json_object_iter_set() is
- * fine. The keys come in the order of the internal hash table, which is
- * neither the insertion order nor sorted.
+ * fine. The keys come in the order they were added to the object (for
+ * decoded JSON text: the order in the text).
  *
  * Example code:
  *  - We assume hObj is a Handle to a valid JSON object.
@@ -374,9 +445,8 @@ native Handle json_object_iter(Handle hObj);
 /**
  * Like json_object_iter(), but returns an iterator to the key-value
  * pair in object whose key is equal to key.
- * Iterating forward to the end of object only yields all key-value
- * pairs of the object if key happens to be the first key in the
- * underlying hash table.
+ * Iterating forward from there yields key and the keys that were added
+ * to the object after it.
  *
  * @param hObj              Handle to JSON object to get an iterator
  *                          for.
@@ -644,7 +714,7 @@ native bool json_array_extend(Handle hArray, Handle hOther);
 /**
  * Booleans & NULL
  *
- * There is no native to read a boolean: use json_is_true().
+ * Read a boolean with json_boolean_value() (or json_is_true()).
  * The JSON value null is unrelated to INVALID_HANDLE.
  *
  */
@@ -757,8 +827,10 @@ native bool json_string_set(Handle hString, char[] sValue);
  * Pawn integers and floats have 32 bits. Integers in JSON text that do
  * not fit into 32 bits are kept intact in the JSON value, but
  * json_integer_value() returns only their lowest 32 bits. Reals are
- * written with 17 significant digits, so json_real(0.1) is written as
- * 0.10000000149011612.
+ * written with the fewest digits that read back as the same 64-bit
+ * value. A Pawn float turned into that value is often longer than it
+ * looks: json_real(0.1) is written as 0.10000000149011612. Use
+ * json_dump_ex() with JSON_REAL_PRECISION() to write fewer digits.
  *
  */
 
@@ -840,31 +912,89 @@ native float json_number_value(Handle hNumber);
  * Decoding
  *
  * This sections describes the functions that can be used to decode JSON text
- * to the Jansson representation of JSON data. The JSON specification requires
- * that a JSON text is either a serialized array or object, and this
- * requirement is also enforced with the following functions. In other words,
- * the top level value in the JSON text being decoded must be either array or
- * object.
+ * to the Jansson representation of JSON data. By default the top level value
+ * in the JSON text being decoded must be either array or object; pass
+ * JSON_DECODE_ANY to accept any JSON value.
+ *
+ * Each decoding function takes optional flags, combined with |:
+ *  JSON_REJECT_DUPLICATES   Fail if an object in the text has the same key
+ *                           twice. Without it, the last value wins.
+ *  JSON_DISABLE_EOF_CHECK   Stop after the first array or object and ignore
+ *                           the rest of the text. Without it, anything but
+ *                           whitespace after the value is an error.
+ *  JSON_DECODE_ANY          Accept any JSON value at the top level, also a
+ *                           string, number, true, false or null.
+ *  JSON_DECODE_INT_AS_REAL  Decode every number as a JSON real, so integers
+ *                           read with json_real_value() and json_number_value()
+ *                           alike.
+ * Other values raise an error.
  *
  */
 
+#define JSON_REJECT_DUPLICATES  0x1
+#define JSON_DISABLE_EOF_CHECK  0x2
+#define JSON_DECODE_ANY         0x4
+#define JSON_DECODE_INT_AS_REAL 0x8
+
 /**
- * Decodes the JSON string sJSON and returns the array or object it contains.
+ * The reason a decoding function failed, as returned by json_load_ex() and
+ * json_load_file_ex(). The values are the ones of Jansson's enum
+ * json_error_code; decoding returns these:
+ *  json_error_out_of_memory            Not enough memory.
+ *  json_error_stack_overflow           Nested deeper than 2048 levels.
+ *  json_error_cannot_open_file         The file can not be opened.
+ *  json_error_invalid_utf8             The text is not valid UTF-8.
+ *  json_error_premature_end_of_input   The text ends in the middle of a value.
+ *  json_error_end_of_input_expected    There is more text after the value.
+ *  json_error_invalid_syntax           The text is not valid JSON.
+ *  json_error_null_character           The text contains \u0000.
+ *  json_error_null_byte_in_key         An object key contains \u0000.
+ *  json_error_duplicate_key            A key appears twice in an object
+ *                                      (only with JSON_REJECT_DUPLICATES).
+ *  json_error_numeric_overflow         A number is too big for Jansson.
+ * The others are not returned by decoding.
+ */
+enum json_error_code {
+	json_error_unknown,
+	json_error_out_of_memory,
+	json_error_stack_overflow,
+	json_error_cannot_open_file,
+	json_error_invalid_argument,
+	json_error_invalid_utf8,
+	json_error_premature_end_of_input,
+	json_error_end_of_input_expected,
+	json_error_invalid_syntax,
+	json_error_invalid_format,
+	json_error_wrong_type,
+	json_error_null_character,
+	json_error_null_value,
+	json_error_null_byte_in_key,
+	json_error_duplicate_key,
+	json_error_numeric_overflow,
+	json_error_item_not_found,
+	json_error_index_out_of_range
+}
+
+/**
+ * Decodes the JSON string sJSON and returns the value it contains.
  * Errors while decoding are written to the SourceMod error log.
  * The returned Handle must be closed.
  *
  * @param sJSON             String containing valid JSON
+ * @param iFlags            Decoding flags, see 'Decoding'.
  *
- * @return                  Handle to JSON object or array,
+ * @error                   Unsupported flags.
+ * @return                  Handle to the decoded value (an object or
+ *                          array unless JSON_DECODE_ANY is passed),
  *                          or INVALID_HANDLE on error.
  */
-native Handle json_load(const char[] sJSON);
+native Handle json_load(const char[] sJSON, int iFlags = 0);
 
 /**
- * Decodes the JSON string sJSON and returns the array or object it contains.
+ * Decodes the JSON string sJSON and returns the value it contains.
  * This function provides additional error feedback and does not log errors
- * to the sourcemod error log. On success sErrorText, iLine and iColumn
- * are not changed. The returned Handle must be closed.
+ * to the sourcemod error log. On success sErrorText, iLine, iColumn and
+ * iErrorCode are not changed. The returned Handle must be closed.
  *
  * @param sJSON             String containing valid JSON
  * @param sErrorText        This buffer will be filled with the error
@@ -874,33 +1004,40 @@ native Handle json_load(const char[] sJSON);
  *                          starting at 1.
  * @param iColumn           This int will contain the column of the error,
  *                          starting at 1.
+ * @param iFlags            Decoding flags, see 'Decoding'.
+ * @param iErrorCode        This will contain the reason of the error.
  *
- * @return                  Handle to JSON object or array,
+ * @error                   Unsupported flags.
+ * @return                  Handle to the decoded value (an object or
+ *                          array unless JSON_DECODE_ANY is passed),
  *                          or INVALID_HANDLE on error.
  */
-native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, int &iLine, int &iColumn);
+native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
 
 /**
- * Decodes the JSON text in file sFilePath and returns the array or object
- * it contains.
+ * Decodes the JSON text in file sFilePath and returns the value it
+ * contains.
  * Errors while decoding, and a file that can not be opened, are written
  * to the SourceMod error log. The returned Handle must be closed.
  *
  * @param sFilePath         Path to a file containing pure JSON, relative
  *                          to the game directory (as BuildPath() returns
  *                          it). Prefix an absolute path with "file://".
+ * @param iFlags            Decoding flags, see 'Decoding'.
  *
- * @return                  Handle to JSON object or array,
+ * @error                   Unsupported flags.
+ * @return                  Handle to the decoded value (an object or
+ *                          array unless JSON_DECODE_ANY is passed),
  *                          or INVALID_HANDLE on error.
  */
-native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH]);
+native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH], int iFlags = 0);
 
 /**
- * Decodes the JSON text in file sFilePath and returns the array or object
- * it contains.
+ * Decodes the JSON text in file sFilePath and returns the value it
+ * contains.
  * This function provides additional error feedback and does not log errors
- * to the sourcemod error log. On success sErrorText, iLine and iColumn
- * are not changed. The returned Handle must be closed.
+ * to the sourcemod error log. On success sErrorText, iLine, iColumn and
+ * iErrorCode are not changed. The returned Handle must be closed.
  *
  * @param sFilePath         Path to a file containing pure JSON, relative
  *                          to the game directory (as BuildPath() returns
@@ -914,11 +1051,15 @@ native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH]);
  * @param iColumn           This int will contain the column of the error,
  *                          starting at 1, or -1 if the file can not be
  *                          opened.
+ * @param iFlags            Decoding flags, see 'Decoding'.
+ * @param iErrorCode        This will contain the reason of the error.
  *
- * @return                  Handle to JSON object or array,
+ * @error                   Unsupported flags.
+ * @return                  Handle to the decoded value (an object or
+ *                          array unless JSON_DECODE_ANY is passed),
  *                          or INVALID_HANDLE on error.
  */
-native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] sErrorText, int maxlen, int &iLine, int &iColumn);
+native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
 
 
 
@@ -928,8 +1069,34 @@ native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] 
  * This sections describes the functions that can be used to encode values
  * to JSON. By default, only objects and arrays can be encoded directly,
  * since they are the only valid root values of a JSON text.
+ * Object keys are written in the order they were added to the object,
+ * unless the keys are sorted.
+ *
+ * json_dump_ex() and json_dump_file_ex() take their options as flags,
+ * combined with |:
+ *  JSON_INDENT(n)           Pretty-print with n spaces per level, 0 to 31.
+ *                           Without it (n = 0) everything is on one line.
+ *  JSON_COMPACT             No space after ',' and ':'.
+ *  JSON_ENSURE_ASCII        Escape every character outside ASCII.
+ *  JSON_SORT_KEYS           Sort the keys of objects.
+ *  JSON_ENCODE_ANY          Also encode values that are not an object or
+ *                           array, such as a single string or number.
+ *  JSON_ESCAPE_SLASH        Write '/' as '\/'.
+ *  JSON_REAL_PRECISION(n)   Write reals with at most n significant digits,
+ *                           1 to 31. Without it (n = 0) reals are written
+ *                           with the fewest digits that read back exactly.
+ * Other values raise an error.
  *
  */
+
+#define JSON_MAX_INDENT         0x1F
+#define JSON_INDENT(%1)         ((%1) & JSON_MAX_INDENT)
+#define JSON_COMPACT            0x20
+#define JSON_ENSURE_ASCII       0x40
+#define JSON_SORT_KEYS          0x80
+#define JSON_ENCODE_ANY         0x200
+#define JSON_ESCAPE_SLASH       0x400
+#define JSON_REAL_PRECISION(%1) (((%1) & 0x1F) << 11)
 
 /**
  * Saves the JSON representation of hObject in sJSON.
@@ -950,13 +1117,9 @@ native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] 
  * @param bSortKeys         If this flag is used, all the objects in output are sorted
  *                          by key. This is useful e.g. if two JSON texts are diffed
  *                          or visually compared.
- * @param bPreserveOrder    If this flag is used, object keys in the output are sorted
- *                          into the same order in which they were first inserted to
- *                          the object. For example, decoding a JSON text and then
- *                          encoding with this flag preserves the order of object keys.
- *                          Ignored if bSortKeys is set. Without either flag the keys
- *                          come in the order of the internal hash table, which can
- *                          change between server restarts.
+ * @param bPreserveOrder    Has no effect. Object keys are always written in the order
+ *                          they were added, unless bSortKeys is set. Kept so that
+ *                          existing code compiles.
  * @error                   Invalid or closed handle.
  * @return                  Length of the whole JSON string in bytes (larger
  *                          than or equal to maxlength if it was cut off), or
@@ -984,18 +1147,46 @@ native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWid
  * @param bSortKeys         If this flag is used, all the objects in output are sorted
  *                          by key. This is useful e.g. if two JSON texts are diffed
  *                          or visually compared.
- * @param bPreserveOrder    If this flag is used, object keys in the output are sorted
- *                          into the same order in which they were first inserted to
- *                          the object. For example, decoding a JSON text and then
- *                          encoding with this flag preserves the order of object keys.
- *                          Ignored if bSortKeys is set. Without either flag the keys
- *                          come in the order of the internal hash table, which can
- *                          change between server restarts.
+ * @param bPreserveOrder    Has no effect. Object keys are always written in the order
+ *                          they were added, unless bSortKeys is set. Kept so that
+ *                          existing code compiles.
  * @error                   Invalid or closed handle.
  * @return                  True on success, false if hObject is not a JSON
  *                          object or array or the file can not be written.
  */
 native bool json_dump_file(Handle hObject, const char[] sFilePath, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
+
+/**
+ * Like json_dump(), with the options as flags (see 'Encoding').
+ * With JSON_ENCODE_ANY any JSON value can be encoded.
+ *
+ * @param hObject           Handle to the JSON value to encode
+ * @param sJSON             Buffer to store the created JSON string.
+ * @param maxlength         Maximum length of string buffer.
+ * @param iFlags            Encoding flags, see 'Encoding'.
+ * @error                   Invalid or closed handle, or unsupported flags.
+ * @return                  Length of the whole JSON string in bytes (larger
+ *                          than or equal to maxlength if it was cut off), or
+ *                          -1 if the value can not be encoded (not an object
+ *                          or array without JSON_ENCODE_ANY).
+ */
+native int json_dump_ex(Handle hObject, char[] sJSON, int maxlength, int iFlags);
+
+/**
+ * Like json_dump_file(), with the options as flags (see 'Encoding').
+ * With JSON_ENCODE_ANY any JSON value can be encoded.
+ *
+ * @param hObject           Handle to the JSON value to encode
+ * @param sFilePath         Path of the file to write, relative to the game
+ *                          directory (as BuildPath() returns it). Prefix an
+ *                          absolute path with "file://".
+ * @param iFlags            Encoding flags, see 'Encoding'.
+ * @error                   Invalid or closed handle, or unsupported flags.
+ * @return                  True on success, false if the value can not be
+ *                          encoded (not an object or array without
+ *                          JSON_ENCODE_ANY) or the file can not be written.
+ */
+native bool json_dump_file_ex(Handle hObject, const char[] sFilePath, int iFlags);
 
 
 
@@ -1471,6 +1662,10 @@ public void __ext_smjansson_SetNTVOptional()
 	MarkNativeAsOptional("json_object_update");
 	MarkNativeAsOptional("json_object_update_existing");
 	MarkNativeAsOptional("json_object_update_missing");
+	MarkNativeAsOptional("json_object_update_new");
+	MarkNativeAsOptional("json_object_update_existing_new");
+	MarkNativeAsOptional("json_object_update_missing_new");
+	MarkNativeAsOptional("json_object_update_recursive");
 
 	MarkNativeAsOptional("json_object_iter");
 	MarkNativeAsOptional("json_object_iter_at");
@@ -1512,9 +1707,13 @@ public void __ext_smjansson_SetNTVOptional()
 	MarkNativeAsOptional("json_null");	
 
 	MarkNativeAsOptional("json_load");
+	MarkNativeAsOptional("json_load_ex");
 	MarkNativeAsOptional("json_load_file");
+	MarkNativeAsOptional("json_load_file_ex");
 
 	MarkNativeAsOptional("json_dump");
 	MarkNativeAsOptional("json_dump_file");
+	MarkNativeAsOptional("json_dump_ex");
+	MarkNativeAsOptional("json_dump_file_ex");
 }
 #endif

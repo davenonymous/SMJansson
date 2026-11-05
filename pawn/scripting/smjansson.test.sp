@@ -18,7 +18,7 @@ public void OnPluginStart() {
 
 	bool bStepSuccess = false;
 
-	StringMap hTest = Test_New(103);
+	StringMap hTest = Test_New(122);
 	Test_Ok(hTest, LibraryExists("jansson"), "Library is loaded");
 
 	Handle hObj = json_object();
@@ -92,7 +92,7 @@ public void OnPluginStart() {
 
 
 
-	char sShouldBe[128] = "{\"__Float\": -444.55599975585938, \"__String\": \"The answer is 42\", \"__Integer\": 1337}";
+	char sShouldBe[128] = "{\"__String\": \"The answer is 42\", \"__Float\": -444.5559997558594, \"__Integer\": 1337}";
 
 	char sJSON[4096];
 	json_dump(hObj, sJSON, sizeof(sJSON), 0);
@@ -383,7 +383,7 @@ public void OnPluginStart() {
 	char sBooleanObjectDump[4096];
 	json_dump(hBooleanObject, sBooleanObjectDump, sizeof(sBooleanObjectDump), 0);
 
-	char sBooleanShouldBe[4096] = "{\"false2\": false, \"true1\": true, \"false1\": false, \"true2\": true, \"null\": null}";
+	char sBooleanShouldBe[4096] = "{\"true1\": true, \"false1\": false, \"true2\": true, \"false2\": false, \"null\": null}";
 	Test_Is_String(hTest, sBooleanObjectDump, sBooleanShouldBe, "Created JSON matches");
 
 	delete hBooleanObject;
@@ -430,7 +430,84 @@ public void OnPluginStart() {
 	delete hObjManipulation;
 	delete hReloaded;
 
+	TestJansson215Features(hTest);
+
 	// Finish testing
 	Test_End(hTest);
 	delete hTest;
+}
+
+// Natives and options added with Jansson 2.15.1
+void TestJansson215Features(StringMap hTest) {
+	PrintToServer("      - Testing features added with Jansson 2.15.1");
+
+	Handle hBool = json_true();
+	Test_Ok(hTest, json_boolean_value(hBool), "json_boolean_value reads true");
+	delete hBool;
+
+	Handle hBase = json_load("{\"a\": {\"x\": 1, \"y\": 2}, \"b\": 1}");
+	Handle hPatch = json_load("{\"a\": {\"y\": 3, \"z\": 4}}");
+	Test_Ok(hTest, json_object_update_recursive(hBase, hPatch), "Updating recursively");
+	delete hPatch;
+	Handle hMerged = json_load("{\"a\": {\"x\": 1, \"y\": 3, \"z\": 4}, \"b\": 1}");
+	Test_Ok(hTest, json_equal(hBase, hMerged), "Nested objects are merged");
+	delete hMerged;
+	delete hBase;
+
+	Handle hTarget = json_load("{\"a\": 1}");
+	Test_Ok(hTest, json_object_update_new(hTarget, json_load("{\"a\": 2, \"b\": 2}")), "Updating all keys (using reference stealing)");
+	Test_Ok(hTest, json_object_update_existing_new(hTarget, json_load("{\"a\": 3, \"c\": 3}")), "Updating existing keys (using reference stealing)");
+	Test_Ok(hTest, json_object_update_missing_new(hTarget, json_load("{\"a\": 4, \"d\": 4}")), "Updating missing keys (using reference stealing)");
+	Handle hExpected = json_load("{\"a\": 3, \"b\": 2, \"d\": 4}");
+	Test_Ok(hTest, json_equal(hTarget, hExpected), "Object has the expected keys and values");
+	delete hExpected;
+	delete hTarget;
+
+	char sDump[256];
+	Handle hDumpObj = json_load("{\"path\": \"a/b\", \"real\": 0.5, \"list\": [1, 2]}");
+	json_dump_ex(hDumpObj, sDump, sizeof(sDump), JSON_COMPACT);
+	Test_Is_String(hTest, sDump, "{\"path\":\"a/b\",\"real\":0.5,\"list\":[1,2]}", "Compact output");
+	json_dump_ex(hDumpObj, sDump, sizeof(sDump), JSON_COMPACT | JSON_ESCAPE_SLASH);
+	Test_Is_String(hTest, sDump, "{\"path\":\"a\\/b\",\"real\":0.5,\"list\":[1,2]}", "Escaped slashes");
+
+	Handle hReals = json_array();
+	json_array_append_new(hReals, json_real(0.1));
+	json_dump_ex(hReals, sDump, sizeof(sDump), JSON_REAL_PRECISION(7));
+	Test_Is_String(hTest, sDump, "[0.1]", "Real precision limits the digits");
+	delete hReals;
+
+	Handle hScalar = json_string("value");
+	json_dump_ex(hScalar, sDump, sizeof(sDump), JSON_ENCODE_ANY);
+	Test_Is_String(hTest, sDump, "\"value\"", "Encoding a string on its own");
+	Test_Is(hTest, json_dump_ex(hScalar, sDump, sizeof(sDump), 0), -1, "A string on its own needs JSON_ENCODE_ANY");
+	delete hScalar;
+
+	DeleteFile("testoutput_ex.json");
+	Test_Ok(hTest, json_dump_file_ex(hDumpObj, "testoutput_ex.json", JSON_INDENT(2)), "File written with flags");
+	Handle hReread = json_load_file("testoutput_ex.json");
+	Test_Ok(hTest, json_equal(hReread, hDumpObj), "File written with flags reads back equal");
+	delete hReread;
+	delete hDumpObj;
+
+	Handle hAny = json_load("42", JSON_DECODE_ANY);
+	Test_Is(hTest, json_integer_value(hAny), 42, "Decoding a number on its own");
+	delete hAny;
+
+	Handle hAsReal = json_load("[1]", JSON_DECODE_INT_AS_REAL);
+	Handle hFirst = json_array_get(hAsReal, 0);
+	Test_Ok(hTest, json_is_real(hFirst), "Integers decoded as reals");
+	delete hFirst;
+	delete hAsReal;
+
+	Handle hNoEOF = json_load("[1] trailing", JSON_DISABLE_EOF_CHECK);
+	Test_IsNot(hTest, hNoEOF, INVALID_HANDLE, "Text after the value is ignored");
+	delete hNoEOF;
+
+	char sError[256];
+	int iLine, iColumn;
+	json_error_code iErrorCode = json_error_unknown;
+	Handle hDuplicate = json_load_ex("{\"a\": 1, \"a\": 2}", sError, sizeof(sError), iLine, iColumn, JSON_REJECT_DUPLICATES, iErrorCode);
+	Test_Is(hTest, hDuplicate, INVALID_HANDLE, "Duplicate keys are rejected");
+	Test_Is(hTest, iErrorCode, json_error_duplicate_key, "Error code names duplicate keys");
+	delete hDuplicate;
 }

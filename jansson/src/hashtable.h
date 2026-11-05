@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 Petri Lehtinen <petri@digip.org>
+ * Copyright (c) 2009-2016 Petri Lehtinen <petri@digip.org>
  *
  * This library is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
@@ -7,6 +7,9 @@
 
 #ifndef HASHTABLE_H
 #define HASHTABLE_H
+
+#include "jansson.h"
+#include <stdlib.h>
 
 struct hashtable_list {
     struct hashtable_list *prev;
@@ -17,10 +20,11 @@ struct hashtable_list {
    key-value pair. In this case, it just encodes some extra data,
    too */
 struct hashtable_pair {
-    size_t hash;
     struct hashtable_list list;
+    struct hashtable_list ordered_list;
+    size_t hash;
     json_t *value;
-    size_t serial;
+    size_t key_len;
     char key[1];
 };
 
@@ -32,14 +36,13 @@ struct hashtable_bucket {
 typedef struct hashtable {
     size_t size;
     struct hashtable_bucket *buckets;
-    size_t order;  /* hashtable has pow(2, order) buckets */
+    size_t order; /* hashtable has pow(2, order) buckets */
     struct hashtable_list list;
+    struct hashtable_list ordered_list;
 } hashtable_t;
 
-
-#define hashtable_key_to_iter(key_) \
-    (&(container_of(key_, struct hashtable_pair, key)->list))
-
+#define hashtable_key_to_iter(key_)                                                      \
+    (&(container_of(key_, struct hashtable_pair, key)->ordered_list))
 
 /**
  * hashtable_init - Initialize a hashtable object
@@ -51,7 +54,7 @@ typedef struct hashtable {
  *
  * Returns 0 on success, -1 on error (out of memory).
  */
-int hashtable_init(hashtable_t *hashtable);
+int hashtable_init(hashtable_t *hashtable) JANSSON_ATTRS((warn_unused_result));
 
 /**
  * hashtable_close - Release all resources used by a hashtable object
@@ -67,39 +70,39 @@ void hashtable_close(hashtable_t *hashtable);
  *
  * @hashtable: The hashtable object
  * @key: The key
- * @serial: For addition order of keys
+ * @key_len: The length of key
  * @value: The value
  *
  * If a value with the given key already exists, its value is replaced
- * with the new value. Value is "stealed" in the sense that hashtable
+ * with the new value. Value is "stolen" in the sense that hashtable
  * doesn't increment its refcount but decreases the refcount when the
  * value is no longer needed.
  *
  * Returns 0 on success, -1 on failure (out of memory).
  */
-int hashtable_set(hashtable_t *hashtable,
-                  const char *key, size_t serial,
-                  json_t *value);
+int hashtable_set(hashtable_t *hashtable, const char *key, size_t key_len, json_t *value);
 
 /**
  * hashtable_get - Get a value associated with a key
  *
  * @hashtable: The hashtable object
  * @key: The key
+ * @key_len: The length of key
  *
  * Returns value if it is found, or NULL otherwise.
  */
-void *hashtable_get(hashtable_t *hashtable, const char *key);
+void *hashtable_get(hashtable_t *hashtable, const char *key, size_t key_len);
 
 /**
  * hashtable_del - Remove a value from the hashtable
  *
  * @hashtable: The hashtable object
  * @key: The key
+ * @key_len: The length of key
  *
  * Returns 0 on success, or -1 if the key was not found.
  */
-int hashtable_del(hashtable_t *hashtable, const char *key);
+int hashtable_del(hashtable_t *hashtable, const char *key, size_t key_len);
 
 /**
  * hashtable_clear - Clear hashtable
@@ -132,11 +135,12 @@ void *hashtable_iter(hashtable_t *hashtable);
  *
  * @hashtable: The hashtable object
  * @key: The key that the iterator should point to
+ * @key_len: The length of key
  *
  * Like hashtable_iter() but returns an iterator pointing to a
  * specific key.
  */
-void *hashtable_iter_at(hashtable_t *hashtable, const char *key);
+void *hashtable_iter_at(hashtable_t *hashtable, const char *key, size_t key_len);
 
 /**
  * hashtable_iter_next - Advance an iterator
@@ -157,11 +161,11 @@ void *hashtable_iter_next(hashtable_t *hashtable, void *iter);
 void *hashtable_iter_key(void *iter);
 
 /**
- * hashtable_iter_serial - Retrieve the serial number pointed to by an iterator
+ * hashtable_iter_key_len - Retrieve the key length pointed by an iterator
  *
  * @iter: The iterator
  */
-size_t hashtable_iter_serial(void *iter);
+size_t hashtable_iter_key_len(void *iter);
 
 /**
  * hashtable_iter_value - Retrieve the value pointed by an iterator

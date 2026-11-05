@@ -41,7 +41,7 @@
 /* Basic information exposed publicly */
 #define SMEXT_CONF_NAME			"SMJansson"
 #define SMEXT_CONF_DESCRIPTION	"JSON parser/writer"
-#define SMEXT_CONF_VERSION		"2.6.0/1"
+#define SMEXT_CONF_VERSION		"2.15.1/1"
 #define SMEXT_CONF_AUTHOR		"Thrawn2"
 #define SMEXT_CONF_URL			"https://github.com/thraaawn/SMJansson"
 #define SMEXT_CONF_LOGTAG		"SMJSON"

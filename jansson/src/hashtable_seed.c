@@ -3,7 +3,7 @@
 */
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#include <jansson_private_config.h>
 #endif
 
 #include <stdio.h>
@@ -38,12 +38,11 @@
 #endif
 
 #if defined(_WIN32)
-/* For _getpid() */
-#include <process.h>
+/* For GetModuleHandle(), GetProcAddress() and GetCurrentProcessId() */
+#include <windows.h>
 #endif
 
 #include "jansson.h"
-
 
 static uint32_t buf_to_uint32(char *data) {
     size_t i;
@@ -54,8 +53,6 @@ static uint32_t buf_to_uint32(char *data) {
 
     return result;
 }
-
-
 
 /* /dev/urandom */
 #if !defined(_WIN32) && defined(USE_URANDOM)
@@ -95,15 +92,15 @@ static int seed_from_urandom(uint32_t *seed) {
 
 /* Windows Crypto API */
 #if defined(_WIN32) && defined(USE_WINDOWS_CRYPTOAPI)
-#include <windows.h>
 #include <wincrypt.h>
 
-typedef BOOL (WINAPI *CRYPTACQUIRECONTEXTA)(HCRYPTPROV *phProv, LPCSTR pszContainer, LPCSTR pszProvider, DWORD dwProvType, DWORD dwFlags);
-typedef BOOL (WINAPI *CRYPTGENRANDOM)(HCRYPTPROV hProv, DWORD dwLen, BYTE *pbBuffer);
-typedef BOOL (WINAPI *CRYPTRELEASECONTEXT)(HCRYPTPROV hProv, DWORD dwFlags);
+typedef BOOL(WINAPI *CRYPTACQUIRECONTEXTA)(HCRYPTPROV *phProv, LPCSTR pszContainer,
+                                           LPCSTR pszProvider, DWORD dwProvType,
+                                           DWORD dwFlags);
+typedef BOOL(WINAPI *CRYPTGENRANDOM)(HCRYPTPROV hProv, DWORD dwLen, BYTE *pbBuffer);
+typedef BOOL(WINAPI *CRYPTRELEASECONTEXT)(HCRYPTPROV hProv, DWORD dwFlags);
 
-static int seed_from_windows_cryptoapi(uint32_t *seed)
-{
+static int seed_from_windows_cryptoapi(uint32_t *seed) {
     HINSTANCE hAdvAPI32 = NULL;
     CRYPTACQUIRECONTEXTA pCryptAcquireContext = NULL;
     CRYPTGENRANDOM pCryptGenRandom = NULL;
@@ -112,11 +109,12 @@ static int seed_from_windows_cryptoapi(uint32_t *seed)
     BYTE data[sizeof(uint32_t)];
     int ok;
 
-    hAdvAPI32 = GetModuleHandle("advapi32.dll");
-    if(hAdvAPI32 == NULL)
+    hAdvAPI32 = GetModuleHandle(TEXT("advapi32.dll"));
+    if (hAdvAPI32 == NULL)
         return 1;
 
-    pCryptAcquireContext = (CRYPTACQUIRECONTEXTA)GetProcAddress(hAdvAPI32, "CryptAcquireContextA");
+    pCryptAcquireContext =
+        (CRYPTACQUIRECONTEXTA)GetProcAddress(hAdvAPI32, "CryptAcquireContextA");
     if (!pCryptAcquireContext)
         return 1;
 
@@ -124,14 +122,16 @@ static int seed_from_windows_cryptoapi(uint32_t *seed)
     if (!pCryptGenRandom)
         return 1;
 
-    pCryptReleaseContext = (CRYPTRELEASECONTEXT)GetProcAddress(hAdvAPI32, "CryptReleaseContext");
+    pCryptReleaseContext =
+        (CRYPTRELEASECONTEXT)GetProcAddress(hAdvAPI32, "CryptReleaseContext");
     if (!pCryptReleaseContext)
         return 1;
 
-    if (!pCryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+    if (!pCryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL,
+                              CRYPT_VERIFYCONTEXT))
         return 1;
 
-    ok = CryptGenRandom(hCryptProv, sizeof(uint32_t), data);
+    ok = pCryptGenRandom(hCryptProv, sizeof(uint32_t), data);
     pCryptReleaseContext(hCryptProv, 0);
 
     if (!ok)
@@ -156,7 +156,7 @@ static int seed_from_timestamp_and_pid(uint32_t *seed) {
 
     /* XOR with PID for more randomness */
 #if defined(_WIN32)
-    *seed ^= (uint32_t)_getpid();
+    *seed ^= (uint32_t)GetCurrentProcessId();
 #elif defined(HAVE_GETPID)
     *seed ^= (uint32_t)getpid();
 #endif
@@ -165,16 +165,16 @@ static int seed_from_timestamp_and_pid(uint32_t *seed) {
 }
 
 static uint32_t generate_seed() {
-    uint32_t seed;
+    uint32_t seed = 0;
     int done = 0;
 
 #if !defined(_WIN32) && defined(USE_URANDOM)
-    if (!done && seed_from_urandom(&seed) == 0)
+    if (seed_from_urandom(&seed) == 0)
         done = 1;
 #endif
 
 #if defined(_WIN32) && defined(USE_WINDOWS_CRYPTOAPI)
-    if (!done && seed_from_windows_cryptoapi(&seed) == 0)
+    if (seed_from_windows_cryptoapi(&seed) == 0)
         done = 1;
 #endif
 
@@ -190,7 +190,6 @@ static uint32_t generate_seed() {
 
     return seed;
 }
-
 
 volatile uint32_t hashtable_seed = 0;
 
@@ -213,7 +212,7 @@ void json_object_seed(size_t seed) {
 #ifdef HAVE_SCHED_YIELD
                 sched_yield();
 #endif
-            } while(__atomic_load_n(&hashtable_seed, __ATOMIC_ACQUIRE) == 0);
+            } while (__atomic_load_n(&hashtable_seed, __ATOMIC_ACQUIRE) == 0);
         }
     }
 }
@@ -240,10 +239,10 @@ void json_object_seed(size_t seed) {
                 sched_yield();
 #endif
             }
-        } while(hashtable_seed == 0);
+        } while (hashtable_seed == 0);
     }
 }
-#elif defined(_WIN32) && !defined(FORCE_THREAD_UNSAFE_SEED)
+#elif defined(_WIN32)
 static long seed_initialized = 0;
 void json_object_seed(size_t seed) {
     uint32_t new_seed = (uint32_t)seed;

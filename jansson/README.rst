@@ -1,16 +1,17 @@
 Jansson README
 ==============
 
-.. image:: https://travis-ci.org/akheron/jansson.png
-  :alt: Build status
-  :target: https://travis-ci.org/akheron/jansson
+.. |tests|  image:: https://github.com/akheron/jansson/workflows/tests/badge.svg
+.. |appveyor|  image::  https://ci.appveyor.com/api/projects/status/lmhkkc4q8cwc65ko
+
+|tests| |appveyor|
 
 Jansson_ is a C library for encoding, decoding and manipulating JSON
 data. Its main features and design principles are:
 
 - Simple and intuitive API and data model
 
-- Comprehensive documentation
+- `Comprehensive documentation`_
 
 - No dependencies on other libraries
 
@@ -21,12 +22,11 @@ data. Its main features and design principles are:
 Jansson is licensed under the `MIT license`_; see LICENSE in the
 source distribution for details.
 
-
 Compilation and Installation
 ----------------------------
 
-If you obtained a source tarball, just use the standard autotools
-commands::
+If you obtained a ``jansson-X.Y.tar.*`` tarball from GitHub Releases, just use
+the standard autotools commands::
 
    $ ./configure
    $ make
@@ -36,9 +36,8 @@ To run the test suite, invoke::
 
    $ make check
 
-If the source has been checked out from a Git repository, the
-./configure script has to be generated first. The easiest way is to
-use autoreconf::
+If the source has been checked out from a Git repository, the ``configure``
+script has to be generated first. The easiest way is to use autoreconf::
 
    $ autoreconf -i
 
@@ -46,8 +45,7 @@ use autoreconf::
 Documentation
 -------------
 
-Prebuilt HTML documentation is available at
-http://www.digip.org/jansson/doc/.
+Documentation is available at http://jansson.readthedocs.io/en/latest/.
 
 The documentation source is in the ``doc/`` subdirectory. To generate
 HTML documentation, invoke::
@@ -58,6 +56,15 @@ Then, point your browser to ``doc/_build/html/index.html``. Sphinx_
 1.0 or newer is required to generate the documentation.
 
 
+Community
+---------
+
+* `Documentation <http://jansson.readthedocs.io/en/latest/>`_
+* `Issue tracker <https://github.com/akheron/jansson/issues>`_
+* `Mailing list <http://groups.google.com/group/jansson-users>`_
+* `Wiki <https://github.com/akheron/jansson/wiki>`_ contains some development documentation
+
 .. _Jansson: http://www.digip.org/jansson/
+.. _`Comprehensive documentation`: http://jansson.readthedocs.io/en/latest/
 .. _`MIT license`: http://www.opensource.org/licenses/mit-license.php
 .. _Sphinx: http://sphinx.pocoo.org/

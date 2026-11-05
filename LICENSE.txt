@@ -35,8 +35,10 @@ sample extension parts of extension.cpp and extension.h) is Copyright (C)
 2004-2008 AlliedModders LLC and is licensed under SourceMod's license, as stated
 in the file headers. See https://www.sourcemod.net/license.php.
 
-Jansson, in the jansson/ directory, is Copyright (c) 2009-2013 Petri Lehtinen
-and is licensed under the MIT license. See jansson/LICENSE.
+Jansson, in the jansson/ directory, is Copyright (c) 2009-2024 Petri Lehtinen
+and is licensed under the MIT license. Its jansson/src/dtoa.c is Copyright (c)
+1991, 2000, 2001 by Lucent Technologies under its own permissive license. See
+jansson/LICENSE for both.
 
 SourceMod is Copyright (C) 2006-2008 AlliedModders LLC. All rights reserved.
 Source is Copyright (C) Valve Corporation.

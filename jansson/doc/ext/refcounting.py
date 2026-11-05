@@ -19,13 +19,13 @@
 
        <description of the json_object function>
 
-    :copyright: Copyright (c) 2009-2013 Petri Lehtinen <petri@digip.org>
+    :copyright: Copyright (c) 2009-2016 Petri Lehtinen <petri@digip.org>
     :license: MIT, see LICENSE for details.
 """
 
 from docutils import nodes
+from docutils.parsers.rst import Directive
 
-class refcounting(nodes.emphasis): pass
 
 def visit(self, node):
     self.visit_emphasis(node)
@@ -40,20 +40,30 @@ def html_depart(self, node):
     self.body.append('</em>')
 
 
-def refcounting_directive(name, arguments, options, content, lineno,
-                   content_offset, block_text, state, state_machine):
-    if arguments[0] == 'borrow':
-        text = 'Return value: Borrowed reference.'
-    elif arguments[0] == 'new':
-        text = 'Return value: New reference.'
-    else:
-        raise Error('Valid arguments: new, borrow')
+class refcounting(nodes.emphasis):
+    pass
 
-    return [refcounting(text, text)]
+class refcounting_directive(Directive):
+    has_content = False
+    required_arguments = 1
+    optional_arguments = 0
+    final_argument_whitespace = False
+
+    def run(self):
+        if self.arguments[0] == 'borrow':
+            text = 'Return value: Borrowed reference.'
+        elif self.arguments[0] == 'new':
+            text = 'Return value: New reference.'
+        else:
+            raise Error('Valid arguments: new, borrow')
+
+        return [refcounting(text, text)]
+
 
 def setup(app):
     app.add_node(refcounting,
                  html=(html_visit, html_depart),
                  latex=(visit, depart),
-                 text=(visit, depart))
-    app.add_directive('refcounting', refcounting_directive, 0, (1, 0, 0))
+                 text=(visit, depart),
+                 man=(visit, depart))
+    app.add_directive('refcounting', refcounting_directive)

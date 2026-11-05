@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 Petri Lehtinen <petri@digip.org>
+ * Copyright (c) 2010-2016 Petri Lehtinen <petri@digip.org>
  *
  * Jansson is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
@@ -17,11 +17,14 @@
 #define JANSSON_CONFIG_H
 
 /* Define this so that we can disable scattered automake configuration in source files */
+#ifndef JANSSON_USING_CMAKE
 #define JANSSON_USING_CMAKE
+#endif
 
-/* Note: when using cmake, JSON_INTEGER_IS_LONG_LONG is not defined nor used,
- * as we will also check for __int64 etc types.
- * (the definition was used in the automake system) */
+/* If your compiler supports the `long long` type and the strtoll()
+   library function, JSON_INTEGER_IS_LONG_LONG is defined to 1,
+   otherwise to 0. */
+#cmakedefine JSON_INTEGER_IS_LONG_LONG 1
 
 /* Bring in the cmake-detected defines */
 #cmakedefine HAVE_STDINT_H 1
@@ -54,9 +57,16 @@
 #define JSON_INTEGER_FORMAT @JSON_INTEGER_FORMAT@
 
 
-/* If locale.h and localeconv() are available, define to 1, otherwise to 0. */
-#define JSON_HAVE_LOCALECONV @JSON_HAVE_LOCALECONV@
+/* If __atomic builtins are available they will be used to manage
+   reference counts of json_t. */
+#define JSON_HAVE_ATOMIC_BUILTINS @JSON_HAVE_ATOMIC_BUILTINS@
 
+/* If __atomic builtins are not available we try using __sync builtins
+   to manage reference counts of json_t. */
+#define JSON_HAVE_SYNC_BUILTINS @JSON_HAVE_SYNC_BUILTINS@
 
+/* Maximum recursion depth for parsing JSON input.
+   This limits the depth of e.g. array-within-array constructions. */
+#define JSON_PARSER_MAX_DEPTH 2048
 
 #endif

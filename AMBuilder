@@ -14,6 +14,7 @@ for cxx in builder.targets:
 
     binary.compiler.defines += [
       'HAVE_STRING_H',
+      'HAVE_CONFIG_H',
       'SOURCEMOD_BUILD'
     ]
 
@@ -30,6 +31,7 @@ for cxx in builder.targets:
 
     binary.sources += [
       'extension.cpp',
+      os.path.join(Extension.jansson_root, 'src', 'dtoa.c'),
       os.path.join(Extension.jansson_root, 'src', 'dump.c'),
       os.path.join(Extension.jansson_root, 'src', 'error.c'),
       os.path.join(Extension.jansson_root, 'src', 'hashtable.c'),
@@ -41,6 +43,7 @@ for cxx in builder.targets:
       os.path.join(Extension.jansson_root, 'src', 'strconv.c'),
       os.path.join(Extension.jansson_root, 'src', 'utf.c'),
       os.path.join(Extension.jansson_root, 'src', 'value.c'),
+      os.path.join(Extension.jansson_root, 'src', 'version.c'),
       os.path.join(Extension.sm_root, 'public', 'smsdk_ext.cpp'),
     ]
 

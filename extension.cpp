@@ -333,6 +333,61 @@ static cell_t Native_json_object_update_missing(IPluginContext *pContext, const 
 	return bSuccess;
 }
 
+typedef int (*ObjectUpdateFunc)(json_t *object, json_t *other);
+
+// Shared by the update natives that come after Jansson 2.6: reads hObj and
+// hOther, applies update, and closes hOther on success if bCloseOther is set.
+static cell_t UpdateObject(IPluginContext *pContext, const cell_t *params, ObjectUpdateFunc update, bool bCloseOther) {
+	HandleError err;
+	HandleSecurity sec;
+	sec.pOwner = NULL;
+	sec.pIdentity = myself->GetIdentity();
+
+	json_t *object;
+	Handle_t hndlObject = static_cast<Handle_t>(params[1]);
+	if ((err=g_pHandleSys->ReadHandle(hndlObject, htJanssonObject, &sec, (void **)&object)) != HandleError_None)
+	{
+		return pContext->ThrowNativeError("Invalid <Object> handle %x (error %d)", hndlObject, err);
+	}
+
+	json_t *other;
+	Handle_t hndlOther = static_cast<Handle_t>(params[2]);
+	if ((err=g_pHandleSys->ReadHandle(hndlOther, htJanssonObject, &sec, (void **)&other)) != HandleError_None)
+	{
+		return pContext->ThrowNativeError("Invalid <Object> handle %x (error %d)", hndlOther, err);
+	}
+
+	if (update(object, other) != 0) {
+		return false;
+	}
+
+	if (bCloseOther && (err=g_pHandleSys->FreeHandle(hndlOther, NULL)) != HandleError_None) {
+		return pContext->ThrowNativeError("Could not free <Object> handle %x (error %d)", hndlOther, err);
+	}
+
+	return true;
+}
+
+//native bool json_object_update_new(Handle hObj, Handle hOther);
+static cell_t Native_json_object_update_new(IPluginContext *pContext, const cell_t *params) {
+	return UpdateObject(pContext, params, json_object_update, true);
+}
+
+//native bool json_object_update_existing_new(Handle hObj, Handle hOther);
+static cell_t Native_json_object_update_existing_new(IPluginContext *pContext, const cell_t *params) {
+	return UpdateObject(pContext, params, json_object_update_existing, true);
+}
+
+//native bool json_object_update_missing_new(Handle hObj, Handle hOther);
+static cell_t Native_json_object_update_missing_new(IPluginContext *pContext, const cell_t *params) {
+	return UpdateObject(pContext, params, json_object_update_missing, true);
+}
+
+//native bool json_object_update_recursive(Handle hObj, Handle hOther);
+static cell_t Native_json_object_update_recursive(IPluginContext *pContext, const cell_t *params) {
+	return UpdateObject(pContext, params, json_object_update_recursive, false);
+}
+
 //native json_object_foreach(Handle:hObj);
 
 //native Handle:json_object_iter(Handle:hObj);
@@ -1269,198 +1324,252 @@ static cell_t Native_json_number_value(IPluginContext *pContext, const cell_t *p
 	return sp_ftoc(json_number_value(object));
 }
 
-//native Handle:json_load(const String:sJSON[]);
+// The flags SMJansson passes on to Jansson. JSON_ALLOW_NUL and JSON_EMBED are
+// left out: SourcePawn strings end at the first NUL and dumps go to a buffer.
+static const size_t kLoadFlags = JSON_REJECT_DUPLICATES | JSON_DISABLE_EOF_CHECK | JSON_DECODE_ANY | JSON_DECODE_INT_AS_REAL;
+static const size_t kDumpFlags = JSON_MAX_INDENT | JSON_COMPACT | JSON_ENSURE_ASCII | JSON_SORT_KEYS | JSON_ENCODE_ANY | JSON_ESCAPE_SLASH | JSON_REAL_PRECISION(31);
+
+// Reads the flags in parameter iParam, or 0 if the caller passed fewer
+// parameters (a plugin compiled against an older smjansson.inc).
+// Throws and returns false for flags SMJansson does not support.
+static bool ReadFlags(IPluginContext *pContext, const cell_t *params, int iParam, size_t supported, size_t *flags) {
+	*flags = 0;
+	if (params[0] < iParam) {
+		return true;
+	}
+
+	size_t requested = static_cast<size_t>(static_cast<uint32_t>(params[iParam]));
+	if ((requested & ~supported) != 0) {
+		pContext->ThrowNativeError("Unsupported flags %x", static_cast<unsigned int>(requested & ~supported));
+		return false;
+	}
+
+	*flags = requested;
+	return true;
+}
+
+static cell_t CreateObjectHandle(IPluginContext *pContext, json_t *object) {
+	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+	if(hndlResult == BAD_HANDLE) {
+		json_decref(object);
+		pContext->ThrowNativeError("Could not create <Object> handle.");
+	}
+
+	return hndlResult;
+}
+
+// Fills the error parameters of json_load_ex and json_load_file_ex:
+// sErrorText (2, 3), iLine (4), iColumn (5) and, if passed, iErrorCode (7).
+static void WriteLoadError(IPluginContext *pContext, const cell_t *params, const json_error_t &error) {
+	pContext->StringToLocalUTF8(params[2], params[3], error.text, NULL);
+
+	cell_t *pLineValue;
+	pContext->LocalToPhysAddr(params[4], &pLineValue);
+	*pLineValue = error.line;
+
+	cell_t *pColumnValue;
+	pContext->LocalToPhysAddr(params[5], &pColumnValue);
+	*pColumnValue = error.column;
+
+	if (params[0] >= 7) {
+		cell_t *pErrorCode;
+		pContext->LocalToPhysAddr(params[7], &pErrorCode);
+		*pErrorCode = json_error_code(&error);
+	}
+}
+
+static json_t *LoadFile(IPluginContext *pContext, cell_t pathParam, size_t flags, json_error_t *error) {
+	char *jsonfile;
+	pContext->LocalToString(pathParam, &jsonfile);
+
+	char filePath[PLATFORM_MAX_PATH];
+	g_pSM->BuildPath(Path_Game, filePath, sizeof(filePath), jsonfile);
+
+	return json_load_file(filePath, flags, error);
+}
+
+//native Handle json_load(const char[] sJSON, int iFlags = 0);
 static cell_t Native_json_load(IPluginContext *pContext, const cell_t *params) {
-	// Param 1
+	size_t flags;
+	if (!ReadFlags(pContext, params, 2, kLoadFlags, &flags)) {
+		return BAD_HANDLE;
+	}
+
 	char *sJSON;
 	pContext->LocalToString(params[1], &sJSON);
 
-    json_error_t error;
-    json_t *object = json_loads(sJSON, 0, &error);
+	json_error_t error;
+	json_t *object = json_loads(sJSON, flags, &error);
 	if(!object) {
 		g_pSM->LogError(myself, "Error in line %d, col %d: %s", error.line, error.column, error.text);
 		return BAD_HANDLE;
 	}
 
-	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
-
-	if(hndlResult == BAD_HANDLE) {
-		pContext->ThrowNativeError("Could not create <Object> handle.");
-	}
-
-	return hndlResult;
+	return CreateObjectHandle(pContext, object);
 }
 
-//native Handle:json_load_ex(const String:sJSON[], String:sErrorText[], maxlen, &iLine, &iColumn);
+//native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
 static cell_t Native_json_load_ex(IPluginContext *pContext, const cell_t *params) {
-	// Param 1
-	char *sJSON;
-	pContext->LocalToString(params[1], &sJSON);
-
-    json_error_t error;
-    json_t *object = json_loads(sJSON, 0, &error);
-	if(!object) {
-		pContext->StringToLocalUTF8(params[2], params[3], error.text, NULL);
-
-		cell_t *pLineValue;
-		pContext->LocalToPhysAddr(params[4], &pLineValue);
-		*pLineValue = error.line;
-
-		cell_t *pColumnValue;		
-		pContext->LocalToPhysAddr(params[5], &pColumnValue);		
-		*pColumnValue = error.column;
-
+	size_t flags;
+	if (!ReadFlags(pContext, params, 6, kLoadFlags, &flags)) {
 		return BAD_HANDLE;
 	}
 
-	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
+	char *sJSON;
+	pContext->LocalToString(params[1], &sJSON);
 
-	if(hndlResult == BAD_HANDLE) {
-		pContext->ThrowNativeError("Could not create <Object> handle.");
+	json_error_t error;
+	json_t *object = json_loads(sJSON, flags, &error);
+	if(!object) {
+		WriteLoadError(pContext, params, error);
+		return BAD_HANDLE;
 	}
 
-	return hndlResult;
+	return CreateObjectHandle(pContext, object);
 }
 
-
-//native Handle:json_load_file(const String:sFilePath[PLATFORM_MAX_PATH]);
+//native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH], int iFlags = 0);
 static cell_t Native_json_load_file(IPluginContext *pContext, const cell_t *params) {
-	// Param 1
-	char *jsonfile;
-	pContext->LocalToString(params[1], &jsonfile);
+	size_t flags;
+	if (!ReadFlags(pContext, params, 2, kLoadFlags, &flags)) {
+		return BAD_HANDLE;
+	}
 
-	char filePath[PLATFORM_MAX_PATH];
-	g_pSM->BuildPath(Path_Game, filePath, sizeof(filePath), jsonfile);
-
-    json_error_t error;
-    json_t *object = json_load_file(filePath, 0, &error);
+	json_error_t error;
+	json_t *object = LoadFile(pContext, params[1], flags, &error);
 	if(!object) {
 		g_pSM->LogError(myself, "Error in line %d, col %d: %s", error.line, error.column, error.text);
 		return BAD_HANDLE;
 	}
 
-	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
-
-	if(hndlResult == BAD_HANDLE) {
-		pContext->ThrowNativeError("Could not create <Object> handle.");
-	}
-
-	return hndlResult;
+	return CreateObjectHandle(pContext, object);
 }
 
-//native Handle:json_load_file_ex(const String:sFilePath[PLATFORM_MAX_PATH], String:sErrorText[], maxlen, &iLine, &iColumn);
+//native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
 static cell_t Native_json_load_file_ex(IPluginContext *pContext, const cell_t *params) {
-	// Param 1
-	char *jsonfile;
-	pContext->LocalToString(params[1], &jsonfile);
-
-	char filePath[PLATFORM_MAX_PATH];
-	g_pSM->BuildPath(Path_Game, filePath, sizeof(filePath), jsonfile);
-
-    json_error_t error;
-    json_t *object = json_load_file(filePath, 0, &error);
-	if(!object) {
-		pContext->StringToLocalUTF8(params[2], params[3], error.text, NULL);
-
-		cell_t *pLineValue;
-		pContext->LocalToPhysAddr(params[4], &pLineValue);
-		*pLineValue = error.line;
-
-		cell_t *pColumnValue;		
-		pContext->LocalToPhysAddr(params[5], &pColumnValue);		
-		*pColumnValue = error.column;
-
+	size_t flags;
+	if (!ReadFlags(pContext, params, 6, kLoadFlags, &flags)) {
 		return BAD_HANDLE;
 	}
 
-	Handle_t hndlResult = g_pHandleSys->CreateHandle(htJanssonObject, object, pContext->GetIdentity(), myself->GetIdentity(), NULL);
-
-	if(hndlResult == BAD_HANDLE) {
-		pContext->ThrowNativeError("Could not create <Object> handle.");
+	json_error_t error;
+	json_t *object = LoadFile(pContext, params[1], flags, &error);
+	if(!object) {
+		WriteLoadError(pContext, params, error);
+		return BAD_HANDLE;
 	}
 
-	return hndlResult;
+	return CreateObjectHandle(pContext, object);
 }
 
-//native json_dump(Handle:hObject, String:sJSON[], maxlength, iIndentWidth = 4, bool:bEnsureAscii = false, bool:bSortKeys = false, bool:bPreserveOrder = false);
-static cell_t Native_json_dump(IPluginContext *pContext, const cell_t *params) {
-	HandleError err;
-	HandleSecurity sec;
-	sec.pOwner = NULL;
-	sec.pIdentity = myself->GetIdentity();
-
-	// Param 1
-	json_t *object;
-	Handle_t hndlObject = static_cast<Handle_t>(params[1]);
-	if ((err=g_pHandleSys->ReadHandle(hndlObject, htJanssonObject, &sec, (void **)&object)) != HandleError_None)
-    {
-        return pContext->ThrowNativeError("Invalid <Object> handle %x (error %d)", hndlObject, err);
-    }
-
-	size_t flags = JSON_INDENT(params[4]);		// Param 4: iIndentWidth
-	if(params[5] == 1) {						// Param 5: bEnsureAscii
+// Builds the Jansson flags of json_dump and json_dump_file from their
+// parameters iIndentWidth, bEnsureAscii, bSortKeys and bPreserveOrder,
+// starting at parameter iFirst.
+static size_t LegacyDumpFlags(const cell_t *params, int iFirst) {
+	size_t flags = JSON_INDENT(params[iFirst]);
+	if(params[iFirst + 1] == 1) {
 		flags = flags | JSON_ENSURE_ASCII;
 	}
 
-	if(params[6] == 1) {						// Param 6: bSortKeys
+	if(params[iFirst + 2] == 1) {
 		flags = flags | JSON_SORT_KEYS;
 	}
 
-	if(params[7] == 1) {						// Param 7: bPreserveOrder
+	if(params[iFirst + 3] == 1) {
 		flags = flags | JSON_PRESERVE_ORDER;
 	}
 
-	// Return
-	char *result = json_dumps(object, flags);
-	if(result != NULL) {
-		pContext->StringToLocalUTF8(params[2], params[3], result, NULL);
-		size_t length = strlen(result);
-		free(result);
-		return length;
-	}
-
-	return -1;
+	return flags;
 }
 
-//native bool:json_dump_file(Handle:hObject, const String:sFilePath[], iIndentWidth = 4, bool:bEnsureAscii = false, bool:bSortKeys = false, bool:bPreserveOrder = false);
-static cell_t Native_json_dump_file(IPluginContext *pContext, const cell_t *params) {
+static bool ReadDumpObject(IPluginContext *pContext, const cell_t *params, json_t **object) {
 	HandleError err;
 	HandleSecurity sec;
 	sec.pOwner = NULL;
 	sec.pIdentity = myself->GetIdentity();
 
-	// Param 1
-	json_t *object;
 	Handle_t hndlObject = static_cast<Handle_t>(params[1]);
-	if ((err=g_pHandleSys->ReadHandle(hndlObject, htJanssonObject, &sec, (void **)&object)) != HandleError_None)
-    {
-        return pContext->ThrowNativeError("Invalid <Object> handle %x (error %d)", hndlObject, err);
-    }
+	if ((err=g_pHandleSys->ReadHandle(hndlObject, htJanssonObject, &sec, (void **)object)) != HandleError_None)
+	{
+		pContext->ThrowNativeError("Invalid <Object> handle %x (error %d)", hndlObject, err);
+		return false;
+	}
 
-	// Param 2
+	return true;
+}
+
+// Writes the JSON text of object into the buffer in parameters 2 and 3.
+// Returns the length of the whole text, or -1 if Jansson could not encode it.
+static cell_t DumpToBuffer(IPluginContext *pContext, const cell_t *params, json_t *object, size_t flags) {
+	char *result = json_dumps(object, flags);
+	if(result == NULL) {
+		return -1;
+	}
+
+	pContext->StringToLocalUTF8(params[2], params[3], result, NULL);
+	size_t length = strlen(result);
+	free(result);
+	return length;
+}
+
+static bool DumpToFile(IPluginContext *pContext, cell_t pathParam, json_t *object, size_t flags) {
 	char *jsonfile;
-	pContext->LocalToString(params[2], &jsonfile);
-	
+	pContext->LocalToString(pathParam, &jsonfile);
+
 	char filePath[PLATFORM_MAX_PATH];
 	g_pSM->BuildPath(Path_Game, filePath, sizeof(filePath), jsonfile);
 
+	return json_dump_file(object, filePath, flags) == 0;
+}
 
-	size_t flags = JSON_INDENT(params[3]);		// Param 3: iIndentWidth
-	if(params[4] == 1) {						// Param 4: bEnsureAscii
-		flags = flags | JSON_ENSURE_ASCII;
+//native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
+static cell_t Native_json_dump(IPluginContext *pContext, const cell_t *params) {
+	json_t *object;
+	if (!ReadDumpObject(pContext, params, &object)) {
+		return -1;
 	}
 
-	if(params[5] == 1) {						// Param 5: bSortKeys
-		flags = flags | JSON_SORT_KEYS;
+	return DumpToBuffer(pContext, params, object, LegacyDumpFlags(params, 4));
+}
+
+//native int json_dump_ex(Handle hObject, char[] sJSON, int maxlength, int iFlags);
+static cell_t Native_json_dump_ex(IPluginContext *pContext, const cell_t *params) {
+	size_t flags;
+	if (!ReadFlags(pContext, params, 4, kDumpFlags, &flags)) {
+		return -1;
 	}
 
-	if(params[6] == 1) {						// Param 6: bPreserveOrder
-		flags = flags | JSON_PRESERVE_ORDER;
+	json_t *object;
+	if (!ReadDumpObject(pContext, params, &object)) {
+		return -1;
 	}
 
-	// Return
-	bool bSuccess = (json_dump_file(object, filePath, flags) == 0);
-	return bSuccess;
+	return DumpToBuffer(pContext, params, object, flags);
+}
+
+//native bool json_dump_file(Handle hObject, const char[] sFilePath, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
+static cell_t Native_json_dump_file(IPluginContext *pContext, const cell_t *params) {
+	json_t *object;
+	if (!ReadDumpObject(pContext, params, &object)) {
+		return false;
+	}
+
+	return DumpToFile(pContext, params[2], object, LegacyDumpFlags(params, 3));
+}
+
+//native bool json_dump_file_ex(Handle hObject, const char[] sFilePath, int iFlags);
+static cell_t Native_json_dump_file_ex(IPluginContext *pContext, const cell_t *params) {
+	size_t flags;
+	if (!ReadFlags(pContext, params, 3, kDumpFlags, &flags)) {
+		return false;
+	}
+
+	json_t *object;
+	if (!ReadDumpObject(pContext, params, &object)) {
+		return false;
+	}
+
+	return DumpToFile(pContext, params[2], object, flags);
 }
 
 
@@ -1477,6 +1586,10 @@ const sp_nativeinfo_t json_natives[] =
 	{"json_object_update",						Native_json_object_update},
 	{"json_object_update_existing",				Native_json_object_update_existing},
 	{"json_object_update_missing",				Native_json_object_update_missing},
+	{"json_object_update_new",					Native_json_object_update_new},
+	{"json_object_update_existing_new",			Native_json_object_update_existing_new},
+	{"json_object_update_missing_new",			Native_json_object_update_missing_new},
+	{"json_object_update_recursive",			Native_json_object_update_recursive},
 
 	// Object iteration	
 	{"json_object_iter",						Native_json_object_iter},
@@ -1534,6 +1647,8 @@ const sp_nativeinfo_t json_natives[] =
 	// Encoding
 	{"json_dump",								Native_json_dump},
 	{"json_dump_file",							Native_json_dump_file},
+	{"json_dump_ex",							Native_json_dump_ex},
+	{"json_dump_file_ex",						Native_json_dump_file_ex},
 
 	// Decoding
 	{"json_load",								Native_json_load},

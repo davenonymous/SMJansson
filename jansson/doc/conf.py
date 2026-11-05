@@ -41,14 +41,14 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Jansson'
-copyright = u'2009-2013, Petri Lehtinen'
+copyright = u'2009-2020, Petri Lehtinen'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-version = '2.6'
+version = '2.15.1'
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -69,6 +69,9 @@ exclude_patterns = ['_build']
 # The reST default role (used for this markup: `text`) to use for all documents.
 default_role = 'c:func'
 primary_domain = 'c'
+
+# Suppress warnings about enum and function having the same name (valid in C)
+suppress_warnings = ['duplicate_declaration.c']
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 #add_function_parentheses = True

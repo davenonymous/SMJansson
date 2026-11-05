@@ -1,3 +1,471 @@
+Version 2.15.1
+==============
+
+Released 2026-06-30
+
+* Fixes:
+
+  - Include the object key or array index in unpack type mismatch error
+    messages (@cwalther in #731)
+  - Reject negative string length in the `json_pack` `s#` and `+#` formats
+    (@akheron in #740)
+  - Limit recursion depth in dump, equal and deep copy to prevent stack
+    overflow (@akheron in #741)
+
+* Build:
+
+  - Only export symbols starting with `json_` and `jansson_` from the CMake
+    build (@shyjun in #705)
+  - Include `jansson_private_config.h` only if `HAVE_CONFIG_H` is enabled
+    (@jaeyoonjung in #704)
+  - Add a configurable pkg-config install path to the CMake build
+    (@akallabeth in #721)
+  - Only use `--default-symver` when the linker supports it (@kraj in #744)
+
+Version 2.15.0
+==============
+
+Released 2026-01-24
+
+* New features:
+
+  - Add support for realloc by adding `json_set_alloc_funcs2`, `json_get_alloc_funcs2`
+    (@WilhelmWiens in #717)
+
+* Fixes:
+
+  - Optimize serialization (@WilhelmWiens in #658 and #719)
+  - Fix docstrings in hashtable.h (@WilhelmWiens in #718)
+
+* Build
+
+  - Use target-based cmake settings (@Andrew-Au in #692)
+
+Version 2.14.1
+==============
+
+Released 2025-03-23
+
+* Fixes:
+
+  - Fix thread safety of encoding and decoding when `uselocale` or `newlocale`
+    is used to switch locales inside the threads (#674, #675, #677. Thanks to
+    Bruno Haible for the report and help with fixing.)
+
+  - Use David M. Gay's `dtoa()` algorithm to avoid misprinting issues of real
+    numbers that are not exactly representable as a ``double`` (#680).
+
+    If this is not desirable, use ``./configure --disable-dtoa`` or ``cmake
+    -DUSE_DTOA=OFF``.
+
+* Build:
+
+  - Make test output nicer in CMake based builds (#683)
+  - Simplify tests (#685)
+
+Version 2.14
+============
+
+Released 2021-09-09
+
+* New Features:
+
+  - Add `json_object_getn`, `json_object_setn`, `json_object_deln`, and the
+    corresponding `nocheck` functions. (#520, by Maxim Zhukov)
+
+* Fixes:
+
+  - Handle `sprintf` corner cases (#537, by Tobias Stoeckmann)
+
+* Build:
+
+  - Symbol versioning for all exported symbols (#540, by Simon McVittie)
+  - Fix compiler warnings (#555, by Kelvin Lee)
+
+* Documentation:
+
+  - Small fixes (#544, #546, by @i-ky)
+  - Sphinx 3 compatibility (#543, by Pierce Lopez)
+
+
+Version 2.13.1
+==============
+
+Released 2020-05-07
+
+* Build:
+
+  - Include `jansson_version_str()` and `jansson_version_cmp()` in
+    shared library. (#534)
+
+  - Include ``scripts/`` in tarball. (#535)
+
+
+Version 2.13
+============
+
+Released 2020-05-05
+
+* New Features:
+
+  - Add `jansson_version_str()` and `jansson_version_cmp()` for runtime
+    version checking (#465).
+
+  - Add `json_object_update_new()`, `json_object_update_existing_new()`
+    and `json_object_update_missing_new()` functions (#499).
+
+  - Add `json_object_update_recursive()` (#505).
+
+* Build:
+
+  - Add ``-Wno-format-truncation`` to suppress format truncation warnings (#489).
+
+* Bug fixes:
+
+  - Remove ``strtod`` macro definition for MinGW (#498).
+
+  - Add infinite loop check in `json_deep_copy()` (#490).
+
+  - Add ``pipe`` macro definition for MinGW (#500).
+
+  - Enhance ``JANSSON_ATTRS`` macro to support earlier C standard(C89) (#501).
+
+  - Update version detection for sphinx-build (#502).
+
+* Documentation:
+
+  - Fix typos (#483, #494).
+
+  - Document that call the custom free function to free the return value 
+    of `json_dumps()` if you have a custom malloc/free (#490).
+
+  - Add vcpkg installation instructions (#496).
+
+  - Document that non-blocking file descriptor is not supported on
+    `json_loadfd()` (#503).
+
+
+Version 2.12
+============
+
+Released 2018-11-26
+
+* Bug fixes:
+
+  - Fix error message in `json_pack()` for NULL object (#409).
+
+  - Avoid invalid memory read in `json_pack()` (#421).
+
+  - Call va_end after va_copy in `json_vsprintf()` (#427).
+
+  - Improve handling of formats with '?' and '*' in `json_pack()` (#438).
+
+  - Remove inappropriate `jsonp_free()` which caused segmentation fault in
+    error handling (#444).
+
+* Build:
+
+  - Add function attributes for GCC and CLANG to provide warnings on improper
+    use of jansson routines (#404).
+
+  - Many CMake fixes (#408, #412, #415).
+
+  - Enable -Bsymbolic-functions linker flag whenever possible.
+
+  - Resolve various compiler warnings (#423, #430, #435, #436).
+
+  - Fix code coverage ignored paths (#439).
+
+* Other:
+
+  - Test coverage improvements (#398, #400).
+
+  - Add VS 2017 to appveyor, update Visual Studio documentation (#417).
+
+  - Update copyright for 2018 (#424).
+
+  - Update install instructions in README (#401).
+
+Version 2.11
+============
+
+Released 2018-02-09
+
+* New features:
+
+  - Add `json_pack()` format specifiers s*, o* and O* for values that
+    can be omitted if null (#339).
+
+  - Add `json_error_code()` to retrieve numeric error codes (#365, #380,
+    #381).
+
+  - Enable thread safety for `json_dump()` on all systems.  Enable thread
+    safe `json_decref()` and `json_incref()` for modern compilers (#389).
+
+  - Add `json_sprintf()` and `json_vsprintf()` (#393).
+
+* Bug Fixes:
+
+  - Fix incorrect report of success from `json_dump_file()` when an error
+    is returned by `fclose()` (#359).
+
+  - Make json_equal() const-correct (#344).
+
+  - Fix incomplete stealing of references by `json_pack()` (#374).
+
+* Build:
+
+  - Work around gcc's -Wimplicit-fallthrough.
+
+  - Fix CMake detection of ``sys/types.h`` header (#375).
+
+  - Fix `jansson.pc` generated by CMake to be more consistent with the one
+    generated using GNU Autotools (#368).
+
+* Other:
+
+  - Miscellaneous documentation fixes (#356, #378, #395).
+
+  - Remove unnecessary reference actions from parsers (#377).
+
+Version 2.10
+============
+
+Released 2017-03-02
+
+* New features:
+
+  - Add JSON_EMBED encoding flag allowing arrays and objects to be encoded
+    into existing streams (#329).
+
+  - Add `json_dumpb()` function for dumping to a pre-allocated buffer (#328).
+
+  - Add `json_dumpfd()` and `json_loadfd()` functions for dumping to streaming
+    file descriptors (#328).
+
+  - Add support for parsing buffers larger than 2GB (#309).
+
+* Build:
+
+  - Fix CMake build when LONG_LONG_INT is defined as "" (#321)
+
+* Other:
+
+  - Internal code cleanup (#311, #314)
+
+Version 2.9
+===========
+
+Released 2016-09-18
+
+* New features:
+
+  - Add ``json_auto_t`` to automatically decref a value that goes out
+    of scope. Available only on GCC and Clang. (#301)
+
+* Build:
+
+  - Fix CMake build (at least on Linux) by removing conflicting
+    jansson_config.h from the distribution (#306)
+
+  - Change CMake install target generation to be optional (#305)
+
+* Documentation:
+
+  - Small documentation fixes.
+
+
+Version 2.8
+===========
+
+Released 2016-08-30
+
+* New features:
+
+  - Always preserve insertion order of object items.
+    `json_object_iter()` and friends, `json_object_foreach()` and
+    `json_dumps()` and friends now always work in the insertion order of
+    object items (#293).
+
+  - Add `json_object_foreach_safe()` macro that allows
+    `json_object_del()` calls during iteration (#230).
+
+  - Add `json_get_alloc_funcs()` to allow reading the allocation
+    functions set by `json_set_alloc_funcs()` (#262, #264).
+
+  - Add `json_pack()` format specifiers s?, o? and O? for values that
+    can be null (#261, #270).
+
+* Bug fixes:
+
+  - Fix a crash when parsing inputs consisting of very deeply nested
+    arrays or objects (#282, #284).
+
+  - Never convert numbers to integers in the parser when
+    JSON_DECODE_INT_AS_REAL is set. This fixes error messages for
+    overflowing numbers when JSON_DECODE_INT_AS_REAL is set (#212).
+
+  - Fix a use-after-free in `json_pack()` error handling.
+
+  - Fix subnormal number parsing on mingw32.
+
+  - Handle out-of-memory situations gracefully in the hashtable
+    implementation (#298).
+
+* Build:
+
+  - Fix build with CMake on all versions of Visual Studio up to 2015
+    (#262, #289).
+
+  - Fix pkgconfig libdir when using CMake (#268).
+
+  - Fix CMake config for static CRT builds on Windows (#206).
+
+  - Fix warnings on LLVM 6.0 targeting iOS arm64 (#208).
+
+  - Add coverlls.io support via Travis for a nice test coverage badge
+    (#211).
+
+  - Don't expect ``jansson_config.h`` to be in the compiler's include
+    path (#209).
+
+  - Add a build-time option to set initial hashtable size (#213).
+
+  - Use snprintf and strncpy in place of sprintf and strcpy to silence
+    linker warnings on OpenBSD (#233).
+
+* Documentation:
+
+  - Fix various typos in documentation, and a broken link (#258).
+
+  - Add an example program in ``examples/`` (#214, #217).
+
+  - Fix building of documentation man pages (#207).
+
+  - Document the fact that copying objects doesn't preserve the
+    insertion order of keys (#237).
+
+* Tests:
+
+  - Don't use the nonstandard __FUNCTION__ macro in tests.
+
+  - Use expr instead of $((...)) in shell scripts for Solaris 10
+    compatibility.
+
+  - Disable Visual Studio warning C4756 when triggered deliberately in
+    tests (#216).
+
+  - Other minor fixes (#221, #248).
+
+* Other changes:
+
+  - List all unrecognized object keys when strict unpacking fails
+    (#263).
+
+  - Alter the order of the members of the hashtable_pair struct for
+    easier debugging.
+
+  - Minor performance improvement to `json_dump()` and friends (#234).
+
+  - Minor style fixes (#255, #257).
+
+
+Version 2.7
+===========
+
+Released 2014-10-02
+
+* New features:
+
+  - `json_pack()` and friends: Add format specifiers ``s%`` and ``+%``
+    for a size_t string length (#141).
+
+  - `json_unpack()` and friends: Add format specifier ``s%`` for
+    unpacking the string length along with the string itself (#141).
+
+  - Add length-aware string constructors `json_stringn()` and
+    `json_stringn_nocheck()`, length-aware string mutators
+    `json_string_setn()` and `json_string_setn_nocheck()`, and a
+    function for getting string's length `json_string_length()` (#141,
+    #143).
+
+  - Support ``\u0000`` escapes in the decoder. The support can be
+    enabled by using the ``JSON_ALLOW_NUL`` decoding flag (#141).
+
+  - Add `json_boolean_value()` as an alias for `json_is_true()`
+    (#146).
+
+  - Add JSON_REAL_PRECISION encoding flag/macro for controlling real
+    number precision (#178).
+
+  - Define the maximum indentation as JSON_MAX_INDENT (#191).
+
+* Bug fixes:
+
+  - Some malformed ``\uNNNN`` escapes could crash the decoder with an
+    assertion failure.
+
+  - Avoid integer overflows with very long strings in UTF-8 decoder and
+    hashtable.
+
+  - Check for *NULL* key in `json_object_get()` and
+    `json_object_del()` (#151).
+
+  - Enhance hashtable seeding on Windows (#162).
+
+  - `json_unpack()`: Allow mixing JSON_STRICT with optional keys
+    (#162, #163).
+
+  - Fix int/int32 mismatch (#142).
+
+  - Parse subnormal numbers correctly (#202).
+
+* Build:
+
+  - Remove VS2010 build files. CMake should be used on Windows instead
+    (#165).
+
+  - Fix CMake build flags for MinGW (#193).
+
+  - Add CMake config files for find_package. Rename config.h to
+    jansson_private_config.h (#157, #159).
+
+  - Make Valgrind checks work with CMake (#160).
+
+  - Fix feature checks to use correct __ATOMIC flags.
+
+  - Fix CMake checks for uint16_t and uint8_t support (#177).
+
+  - Make Jansson build on SmartOS/Solaris (#171).
+
+  - Work around a GCC bug on Solaris (#175).
+
+  - Fix autoreconf on Debian (#182).
+
+  - Don't use GNU make specific export for global AM_CFLAGS (#203,
+    #204).
+
+  - Fix building on Android using the supplied Android.mk (#166,
+    #174).
+
+  - Android.mk: Add -DHAVE_STDINT_H to LOCAL_CFLAGS (#200).
+
+* Documentation:
+
+  - Document JANSSON_BUILD_SHARED_LIBS CMake option (#187).
+
+* Tests:
+
+  - Close file handles correctly (#198).
+
+* Other changes:
+
+  - ``\uNNNN`` escapes are now encoded in upper case for better
+    readability.
+
+  - Enable usage of AddressSanitizer (#180).
+
+
 Version 2.6
 ===========
 
@@ -213,7 +681,7 @@ Released 2011-10-06
   - Fix identifier decoding under non-UTF-8 locales. (#35)
 
   - `json_load_file()`: Open the input file in binary mode for maximum
-    compatiblity.
+    compatibility.
 
 * Documentation:
 

@@ -413,8 +413,9 @@ class ExtensionConfig(object):
       os.path.join(self.sm_root, 'public', 'amtl'),
     ]
     compiler.includes += [
+      os.path.join(builder.sourcePath, 'jansson-config'),
       os.path.join(self.jansson_root, 'src'),
-    ]    
+    ]
     return compiler
 
   def ExtLibrary(self, context, compiler, name):
