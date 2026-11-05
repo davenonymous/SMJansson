@@ -10,10 +10,13 @@
  * The JSON specification (RFC 4627) defines the following data types:
  * object, array, string, number, boolean, and null.
  * JSON types are used dynamically; arrays and objects can hold any
- * other data type, including themselves. For this reason, Jansson�s
- * type system is also dynamic in nature. There�s one Handle type to
+ * other data type, including themselves. For this reason, Jansson's
+ * type system is also dynamic in nature. There's one Handle type to
  * represent all JSON values, and the referenced structure knows the
  * type of the JSON value it holds.
+ *
+ * Every native in this file raises an error when it is passed a Handle
+ * that is INVALID_HANDLE, already closed, or not a JSON value.
  *
  */
 enum json_type {
@@ -32,12 +35,17 @@ enum json_type {
  *
  * @param hObj              Handle to the JSON value
  *
+ * @error                   Invalid or closed handle, or a value created
+ *                          by json_string() from invalid UTF-8.
  * @return                  json_type of the value.
  */
 native json_type json_typeof(Handle hObj);
 
 /**
- * The type of a JSON value is queried and tested using these macros
+ * The type of a JSON value is queried and tested using these macros.
+ * They call json_typeof(), so they raise the same errors: they can not
+ * be used to test whether a Handle is INVALID_HANDLE.
+ * json_is_true() is the way to read the value of a JSON boolean.
  *
  * @param %1                Handle to the JSON value
  *
@@ -103,11 +111,11 @@ stock bool Stringify_json_type(json_type input, char[] output, int maxlength) {
 /**
  * Test whether two JSON values are equal.
  *
- * @param hObj              Handle to the first JSON object
- * @param hOther            Handle to the second JSON object
+ * @param hObj              Handle to the first JSON value
+ * @param hOther            Handle to the second JSON value
  *
- * @return                  Returns false if they are inequal or one
- *                          or both of the pointers are NULL.
+ * @error                   Invalid or closed handle.
+ * @return                  True if the values are equal, false otherwise.
  */
 native bool json_equal(Handle hObj, Handle hOther);
 
@@ -129,22 +137,27 @@ native bool json_equal(Handle hObj, Handle hOther);
  */
 
 /**
- * Get a shallow copy of the passed object
+ * Get a shallow copy of the passed value.
+ * The child values of a copied object or array are shared with the
+ * original, so changing a nested object or array changes both.
+ * The returned Handle must be closed.
  *
- * @param hObj              Handle to JSON object to be copied
+ * @param hObj              Handle to the JSON value to be copied
  *
- * @return                  Returns a shallow copy of the object,
- *                          or INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to the copy.
  */
 native Handle json_copy(Handle hObj);
 
 /**
- * Get a deep copy of the passed object
+ * Get a deep copy of the passed value. All child values are copied
+ * recursively, so the copy is independent of the original.
+ * The returned Handle must be closed.
  *
- * @param hObj              Handle to JSON object to be copied
+ * @param hObj              Handle to the JSON value to be copied
  *
- * @return                  Returns a deep copy of the object,
- *                          or INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to the copy.
  */
 native Handle json_deep_copy(Handle hObj);
 
@@ -160,37 +173,46 @@ native Handle json_deep_copy(Handle hObj);
  */
 
 /**
- * Returns a handle to a new JSON object, or INVALID_HANDLE on error.
- * Initially, the object is empty.
+ * Create a new, empty JSON object.
+ * The returned Handle must be closed.
  *
- * @return                  Handle to a new JSON object.
+ * @return                  Handle to the new JSON object.
  */
 native Handle json_object();
 
 /**
- * Returns the number of elements in hObj
+ * Returns the number of keys in hObj.
  *
  * @param hObj              Handle to JSON object
  *
- * @return                  Number of elements in hObj,
+ * @error                   Invalid or closed handle.
+ * @return                  Number of keys in hObj,
  *                          or 0 if hObj is not a JSON object.
  */
 native int json_object_size(Handle hObj);
 
 /**
- * Get a value corresponding to sKey from hObj
+ * Get the value stored under sKey in hObj.
+ * The returned Handle points to the same value that is stored in hObj,
+ * not to a copy: changes made through it are visible in hObj. It must
+ * be closed; closing it does not remove the value from hObj.
+ * sKey is used as it is: "a.b" is a key named "a.b", not a path.
  *
  * @param hObj              Handle to JSON object to get a value from
  * @param sKey              Key to retrieve
  *
- * @return                  Handle to a the JSON object or
- *                          INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to the value, or INVALID_HANDLE if the
+ *                          key does not exist or hObj is not a JSON
+ *                          object.
  */
 native Handle json_object_get(Handle hObj, const char[] sKey);
 
 /**
  * Set the value of sKey to hValue in hObj.
  * If there already is a value for key, it is replaced by the new value.
+ * hValue is stored itself, not a copy. The caller still owns the
+ * Handle hValue and must close it.
  *
  * @param hObj              Handle to JSON object to set a value on
  * @param sKey              Key to store in the object
@@ -198,14 +220,17 @@ native Handle json_object_get(Handle hObj, const char[] sKey);
  *                          Unicode string.
  * @param hValue            Value to store in the object
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hObj is not a JSON
+ *                          object.
  */
 native bool json_object_set(Handle hObj, const char[] sKey, Handle hValue);
 
 /**
  * Set the value of sKey to hValue in hObj.
  * If there already is a value for key, it is replaced by the new value.
- * This function automatically closes the Handle to the value object.
+ * On success this function closes the Handle hValue; do not use it
+ * afterwards. On failure hValue is not closed.
  *
  * @param hObj              Handle to JSON object to set a value on
  * @param sKey              Key to store in the object
@@ -213,39 +238,48 @@ native bool json_object_set(Handle hObj, const char[] sKey, Handle hValue);
  *                          Unicode string.
  * @param hValue            Value to store in the object
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hObj is not a JSON
+ *                          object or sKey is not valid UTF-8.
  */
 native bool json_object_set_new(Handle hObj, const char[] sKey, Handle hValue);
 
 /**
- * Delete sKey from hObj if it exists.
+ * Delete sKey and its value from hObj.
+ * Handles to the deleted value stay valid.
  *
  * @param hObj              Handle to JSON object to delete a key from
  * @param sKey              Key to delete
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if the key does not
+ *                          exist or hObj is not a JSON object.
  */
 native bool json_object_del(Handle hObj, const char[] sKey);
 
 /**
- * Remove all elements from hObj.
+ * Remove all keys from hObj.
  *
  * @param hObj              Handle to JSON object to remove all
- *                          elements from.
+ *                          keys from.
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hObj is not a JSON
+ *                          object.
  */
 native bool json_object_clear(Handle hObj);
 
 /**
  * Update hObj with the key-value pairs from hOther, overwriting
- * existing keys.
+ * existing keys. The values are shared with hOther, not copied.
  *
  * @param hObj              Handle to JSON object to update
  * @param hOther            Handle to JSON object to get update
  *                          keys/values from.
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
  */
 native bool json_object_update(Handle hObj, Handle hOther);
 
@@ -257,7 +291,9 @@ native bool json_object_update(Handle hObj, Handle hOther);
  * @param hOther            Handle to JSON object to get update
  *                          keys/values from.
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
  */
 native bool json_object_update_existing(Handle hObj, Handle hOther);
 
@@ -269,7 +305,9 @@ native bool json_object_update_existing(Handle hObj, Handle hOther);
  * @param hOther            Handle to JSON object to get update
  *                          keys/values from.
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON object.
  */
 native bool json_object_update_missing(Handle hObj, Handle hOther);
 
@@ -279,23 +317,41 @@ native bool json_object_update_missing(Handle hObj, Handle hOther);
 /**
  * Object iteration
  *
+ * An iterator is a position in an object and a Handle of its own.
+ * json_object_iter() and json_object_iter_at() always return an
+ * iterator, also for an empty object, a value that is not an object or
+ * a key that does not exist. Such an iterator points at nothing:
+ * json_object_iter_key() returns -1 and json_object_iter_value()
+ * returns INVALID_HANDLE. Always check json_object_iter_key().
+ *
+ * Do not add or delete keys of the object while iterating over it.
+ * Changing the value at the iterator with json_object_iter_set() is
+ * fine. The keys come in the order of the internal hash table, which is
+ * neither the insertion order nor sorted.
+ *
  * Example code:
  *  - We assume hObj is a Handle to a valid JSON object.
  *
  *
- * new Handle hIterator = json_object_iter(hObj);
- * while(hIterator != INVALID_HANDLE)
+ * Handle hIterator = json_object_iter(hObj);
+ * while (hIterator != null)
  * {
- *     	new String:sKey[128];
- *      json_object_iter_key(hIterator, sKey, sizeof(sKey));
+ *     char sKey[128];
+ *     if (json_object_iter_key(hIterator, sKey, sizeof(sKey)) == -1)
+ *     {
+ *         // hObj is empty, the iterator points at nothing
+ *         delete hIterator;
+ *         break;
+ *     }
  *
- *      new Handle hValue = json_object_iter_value(hIterator);
+ *     Handle hValue = json_object_iter_value(hIterator);
  *
- *      // Do something with sKey and hValue
+ *     // Do something with sKey and hValue
  *
- *      CloseHandle(hValue);
+ *     delete hValue;
  *
- *      hIterator = json_object_iter_next(hObj, hIterator);
+ *     // Closes hIterator, returns null after the last key
+ *     hIterator = json_object_iter_next(hObj, hIterator);
  * }
  *
  */
@@ -309,8 +365,9 @@ native bool json_object_update_missing(Handle hObj, Handle hOther);
  * @param hObj              Handle to JSON object to get an iterator
  *                          for.
  *
- * @return                  Handle to JSON object iterator,
- *                          or INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to JSON object iterator. It points at
+ *                          nothing if hObj is empty or not a JSON object.
  */
 native Handle json_object_iter(Handle hObj);
 
@@ -323,10 +380,11 @@ native Handle json_object_iter(Handle hObj);
  *
  * @param hObj              Handle to JSON object to get an iterator
  *                          for.
- * @param sKey              Start key for the iterator
+ * @param key               Start key for the iterator
  *
- * @return                  Handle to JSON object iterator,
- *                          or INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to JSON object iterator. It points at
+ *                          nothing if the key does not exist.
  */
 native Handle json_object_iter_at(Handle hObj, const char[] key);
 
@@ -334,58 +392,73 @@ native Handle json_object_iter_at(Handle hObj, const char[] key);
  * Returns an iterator pointing to the next key-value pair in object.
  * This automatically closes the Handle to the iterator hIter.
  *
- * @param hObj              Handle to JSON object.
+ * @param hObj              Handle to the JSON object hIter belongs to.
  * @param hIter             Handle to JSON object iterator.
  *
+ * @error                   Invalid or closed handle.
  * @return                  Handle to JSON object iterator,
- *                          or INVALID_HANDLE on error, or if the
- *                          whole object has been iterated through.
+ *                          or INVALID_HANDLE if the whole object has
+ *                          been iterated through.
  */
 native Handle json_object_iter_next(Handle hObj, Handle hIter);
 
 /**
  * Extracts the associated key of hIter as a null terminated UTF-8
- * encoded string in the passed buffer.
+ * encoded string in the passed buffer. A key longer than the buffer is
+ * cut off.
  *
- * @param hIter             Handle to the JSON String object
- * @param sKeyBuffer        Buffer to store the value of the String.
+ * @param hIter             Handle to JSON object iterator.
+ * @param sKeyBuffer        Buffer to store the key.
  * @param maxlength         Maximum length of string buffer.
- * @error                   Invalid JSON Object Iterator.
- * @return                  Length of the returned string or -1 on error.
+ *
+ * @error                   Invalid or closed handle.
+ * @return                  Length of the whole key in bytes (larger than
+ *                          or equal to maxlength if it was cut off), or
+ *                          -1 if the iterator points at nothing.
  */
 native int json_object_iter_key(Handle hIter, char[] sKeyBuffer, int maxlength);
 
 /**
  * Returns a handle to the value hIter is pointing at.
+ * The value is shared with the object, not copied. The returned Handle
+ * must be closed.
  *
  * @param hIter             Handle to JSON object iterator.
  *
- * @return                  Handle to value or INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to value, or INVALID_HANDLE if the
+ *                          iterator points at nothing.
  */
 native Handle json_object_iter_value(Handle hIter);
 
 /**
  * Set the value of the key-value pair in hObj, that is pointed to
  * by hIter, to hValue.
+ * The caller still owns the Handle hValue and must close it.
  *
  * @param hObj              Handle to JSON object.
  * @param hIter             Handle to JSON object iterator.
  * @param hValue            Handle to JSON value.
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hObj is not a JSON
+ *                          object or the iterator points at nothing.
  */
 native bool json_object_iter_set(Handle hObj, Handle hIter, Handle hValue);
 
 /**
  * Set the value of the key-value pair in hObj, that is pointed to
  * by hIter, to hValue.
- * This function automatically closes the Handle to the value object.
+ * On success this function closes the Handle hValue; do not use it
+ * afterwards. On failure hValue is not closed.
  *
  * @param hObj              Handle to JSON object.
  * @param hIter             Handle to JSON object iterator.
  * @param hValue            Handle to JSON value.
  *
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hObj is not a JSON
+ *                          object or the iterator points at nothing.
  */
 native bool json_object_iter_set_new(Handle hObj, Handle hIter, Handle hValue);
 
@@ -400,7 +473,8 @@ native bool json_object_iter_set_new(Handle hObj, Handle hIter, Handle hValue);
  */
 
 /**
- * Returns a handle to a new JSON array, or INVALID_HANDLE on error.
+ * Create a new, empty JSON array.
+ * The returned Handle must be closed.
  *
  * @return                  Handle to the new JSON array
  */
@@ -409,21 +483,26 @@ native Handle json_array();
 /**
  * Returns the number of elements in hArray
  *
- * @param hObj              Handle to JSON array
+ * @param hArray            Handle to JSON array
  *
+ * @error                   Invalid or closed handle.
  * @return                  Number of elements in hArray,
- *                          or 0 if hObj is not a JSON array.
+ *                          or 0 if hArray is not a JSON array.
  */
 native int json_array_size(Handle hArray);
 
 /**
  * Returns the element in hArray at position iIndex.
+ * The returned Handle points to the same value that is stored in
+ * hArray, not to a copy. It must be closed.
  *
  * @param hArray            Handle to JSON array to get a value from
  * @param iIndex            Position to retrieve
  *
- * @return                  Handle to a the JSON object or
- *                          INVALID_HANDLE on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Handle to the element, or INVALID_HANDLE if
+ *                          there is no element at iIndex or hArray is
+ *                          not a JSON array.
  */
 native Handle json_array_get(Handle hArray, int iIndex);
 
@@ -431,12 +510,15 @@ native Handle json_array_get(Handle hArray, int iIndex);
  * Replaces the element in array at position iIndex with hValue.
  * The valid range for iIndex is from 0 to the return value of
  * json_array_size() minus 1.
+ * The caller still owns the Handle hValue and must close it.
  *
  * @param hArray            Handle to JSON array
  * @param iIndex            Position to replace
  * @param hValue            Value to store in the array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if iIndex is out of
+ *                          range or hArray is not a JSON array.
  */
 native bool json_array_set(Handle hArray, int iIndex, Handle hValue);
 
@@ -444,59 +526,78 @@ native bool json_array_set(Handle hArray, int iIndex, Handle hValue);
  * Replaces the element in array at position iIndex with hValue.
  * The valid range for iIndex is from 0 to the return value of
  * json_array_size() minus 1.
- * This function automatically closes the Handle to the value object.
+ * On success this function closes the Handle hValue; do not use it
+ * afterwards. On failure hValue is not closed.
  *
  * @param hArray            Handle to JSON array
  * @param iIndex            Position to replace
  * @param hValue            Value to store in the array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if iIndex is out of
+ *                          range or hArray is not a JSON array.
  */
 native bool json_array_set_new(Handle hArray, int iIndex, Handle hValue);
 
 /**
  * Appends value to the end of array, growing the size of array by 1.
+ * The caller still owns the Handle hValue and must close it.
  *
  * @param hArray            Handle to JSON array
  * @param hValue            Value to append to the array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hArray is not a
+ *                          JSON array.
  */
 native bool json_array_append(Handle hArray, Handle hValue);
 
 /**
  * Appends value to the end of array, growing the size of array by 1.
- * This function automatically closes the Handle to the value object.
+ * On success this function closes the Handle hValue; do not use it
+ * afterwards. On failure hValue is not closed.
  *
  * @param hArray            Handle to JSON array
  * @param hValue            Value to append to the array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hArray is not a
+ *                          JSON array.
  */
 native bool json_array_append_new(Handle hArray, Handle hValue);
 
 /**
  * Inserts value to hArray at position iIndex, shifting the elements at
  * iIndex and after it one position towards the end of the array.
+ * The valid range for iIndex is from 0 to the return value of
+ * json_array_size(); the size appends to the end.
+ * The caller still owns the Handle hValue and must close it.
  *
  * @param hArray            Handle to JSON array
  * @param iIndex            Position to insert at
  * @param hValue            Value to store in the array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if iIndex is out of
+ *                          range or hArray is not a JSON array.
  */
 native bool json_array_insert(Handle hArray, int iIndex, Handle hValue);
 
 /**
  * Inserts value to hArray at position iIndex, shifting the elements at
  * iIndex and after it one position towards the end of the array.
- * This function automatically closes the Handle to the value object.
+ * The valid range for iIndex is from 0 to the return value of
+ * json_array_size(); the size appends to the end.
+ * On success this function closes the Handle hValue; do not use it
+ * afterwards. On failure hValue is not closed.
  *
  * @param hArray            Handle to JSON array
  * @param iIndex            Position to insert at
  * @param hValue            Value to store in the array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if iIndex is out of
+ *                          range or hArray is not a JSON array.
  */
 native bool json_array_insert_new(Handle hArray, int iIndex, Handle hValue);
 
@@ -505,9 +606,11 @@ native bool json_array_insert_new(Handle hArray, int iIndex, Handle hValue);
  * elements after iIndex one position towards the start of the array.
  *
  * @param hArray            Handle to JSON array
- * @param iIndex            Position to insert at
+ * @param iIndex            Position to remove
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if there is no
+ *                          element at iIndex.
  */
 native bool json_array_remove(Handle hArray, int iIndex);
 
@@ -516,17 +619,22 @@ native bool json_array_remove(Handle hArray, int iIndex);
  *
  * @param hArray            Handle to JSON array
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hArray is not a
+ *                          JSON array.
  */
 native bool json_array_clear(Handle hArray);
 
 /**
  * Appends all elements in hOther to the end of hArray.
+ * The elements are shared with hOther, not copied.
  *
  * @param hArray            Handle to JSON array to be extended
  * @param hOther            Handle to JSON array, source to copy from
  *
- * @return					True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if either value is not
+ *                          a JSON array.
  */
 native bool json_array_extend(Handle hArray, Handle hOther);
 
@@ -536,19 +644,22 @@ native bool json_array_extend(Handle hArray, Handle hOther);
 /**
  * Booleans & NULL
  *
+ * There is no native to read a boolean: use json_is_true().
+ * The JSON value null is unrelated to INVALID_HANDLE.
+ *
  */
 
 /**
- * Returns a handle to a new JSON Boolean with value true,
- * or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON Boolean with value true.
+ * The returned Handle must be closed.
  *
  * @return                  Handle to the new Boolean object
  */
 native Handle json_true();
 
 /**
- * Returns a handle to a new JSON Boolean with value false,
- * or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON Boolean with value false.
+ * The returned Handle must be closed.
  *
  * @return                  Handle to the new Boolean object
  */
@@ -556,7 +667,7 @@ native Handle json_false();
 
 /**
  * Returns a handle to a new JSON Boolean with the value passed
- * in bState or INVALID_HANDLE on error.
+ * in bState. The returned Handle must be closed.
  *
  * @param bState            Value for the new Boolean object
  * @return                  Handle to the new Boolean object
@@ -564,7 +675,8 @@ native Handle json_false();
 native Handle json_boolean(bool bState);
 
 /**
- * Returns a handle to a new JSON NULL or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON null. The returned Handle must be
+ * closed.
  *
  * @return                  Handle to the new NULL object
  */
@@ -577,17 +689,26 @@ native Handle json_null();
  * Strings
  *
  * Jansson uses UTF-8 as the character encoding. All JSON strings must
- * be valid UTF-8 (or ASCII, as it�s a subset of UTF-8). Normal null
+ * be valid UTF-8 (or ASCII, as it's a subset of UTF-8). Normal null
  * terminated C strings are used, so JSON strings may not contain
  * embedded null characters.
+ *
+ * Natives that copy text into a buffer cut it off if it does not fit,
+ * never in the middle of a UTF-8 character, and return the length of
+ * the whole text. A return value larger than or equal to maxlength
+ * means the text was cut off.
  *
  */
 
 /**
- * Returns a handle to a new JSON string, or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON string. The returned Handle must be
+ * closed.
+ * If sValue is not valid UTF-8, the returned Handle holds no value:
+ * adding it to an object or array fails and json_typeof() raises an
+ * error.
  *
  * @param sValue            Value for the new String object
- *							Must be a valid UTF-8 encoded Unicode string.
+ *                          Must be a valid UTF-8 encoded Unicode string.
  * @return                  Handle to the new String object
  */
 native Handle json_string(const char[] sValue);
@@ -599,8 +720,10 @@ native Handle json_string(const char[] sValue);
  * @param hString           Handle to the JSON String object
  * @param sValueBuffer      Buffer to store the value of the String.
  * @param maxlength         Maximum length of string buffer.
- * @error                   Invalid JSON String Object.
- * @return                  Length of the returned string or -1 on error.
+ * @error                   Invalid or closed handle.
+ * @return                  Length of the whole string in bytes, or -1
+ *                          if hString is not a JSON string (the buffer
+ *                          is then not changed).
  */
 native int json_string_value(Handle hString, char[] sValueBuffer, int maxlength);
 
@@ -610,8 +733,9 @@ native int json_string_value(Handle hString, char[] sValueBuffer, int maxlength)
  * @param hString           Handle to the JSON String object
  * @param sValue            Value to set the object to.
  *                          Must be a valid UTF-8 encoded Unicode string.
- * @error                   Invalid JSON String Object.
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hString is not a
+ *                          JSON string.
  */
 native bool json_string_set(Handle hString, char[] sValue);
 
@@ -625,14 +749,22 @@ native bool json_string_set(Handle hString, char[] sValue);
  * The C (and Pawn) programming language has distinct types for integer
  * and floating-point numbers, so for practical reasons Jansson also has
  * distinct types for the two. They are called 'integer' and 'real',
- * respectively. (Whereas 'real' is a 'Float' for Pawn).
+ * respectively. (Whereas 'real' is a 'float' for Pawn).
  * Therefore a number is represented by either a value of the type
- * JSON_INTEGER or of the type JSON_REAL.
+ * JSON_INTEGER or of the type JSON_REAL. A number with a decimal point
+ * or an exponent, such as 1.0 or 1e3, is a real.
+ *
+ * Pawn integers and floats have 32 bits. Integers in JSON text that do
+ * not fit into 32 bits are kept intact in the JSON value, but
+ * json_integer_value() returns only their lowest 32 bits. Reals are
+ * written with 17 significant digits, so json_real(0.1) is written as
+ * 0.10000000149011612.
  *
  */
 
 /**
- * Returns a handle to a new JSON integer, or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON integer. The returned Handle must be
+ * closed.
  *
  * @param iValue            Value for the new Integer object
  * @return                  Handle to the new Integer object
@@ -643,9 +775,9 @@ native Handle json_integer(int iValue);
  * Returns the associated value of a JSON Integer Object.
  *
  * @param hInteger          Handle to the JSON Integer object
- * @error                   Invalid JSON Integer Object.
- * @return                  Value of the hInteger,
- *                          or 0 if hInteger is not a JSON integer.
+ * @error                   Invalid or closed handle.
+ * @return                  Value of the hInteger, or 0 if hInteger is
+ *                          not a JSON integer (also for a JSON real).
  */
 native int json_integer_value(Handle hInteger);
 
@@ -654,16 +786,18 @@ native int json_integer_value(Handle hInteger);
  *
  * @param hInteger          Handle to the JSON Integer object
  * @param iValue            Value to set the object to.
- * @error                   Invalid JSON Integer Object.
- * @return                  True on success.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hInteger is not a
+ *                          JSON integer.
  */
 native bool json_integer_set(Handle hInteger, int iValue);
 
 /**
- * Returns a handle to a new JSON real, or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON real. The returned Handle must be
+ * closed.
  *
  * @param fValue            Value for the new Real object
- * @return                  Handle to the new String object
+ * @return                  Handle to the new Real object
  */
 native Handle json_real(float fValue);
 
@@ -671,19 +805,20 @@ native Handle json_real(float fValue);
  * Returns the associated value of a JSON Real.
  *
  * @param hReal             Handle to the JSON Real object
- * @error                   Invalid JSON Real Object.
- * @return                  Float value of hReal,
- *                          or 0.0 if hReal is not a JSON Real.
+ * @error                   Invalid or closed handle.
+ * @return                  Float value of hReal, or 0.0 if hReal is not
+ *                          a JSON real (also for a JSON integer).
  */
 native float json_real_value(Handle hReal);
 
 /**
- * Sets the associated value of JSON Real to fValue.
+ * Sets the associated value of JSON Real to value.
  *
- * @param hReal             Handle to the JSON Integer object
- * @param fValue            Value to set the object to.
- * @error                   Invalid JSON Real handle.
- * @return                  True on success.
+ * @param hReal             Handle to the JSON Real object
+ * @param value             Value to set the object to.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hReal is not a
+ *                          JSON real.
  */
 native bool json_real_set(Handle hReal, float value);
 
@@ -692,9 +827,9 @@ native bool json_real_set(Handle hReal, float value);
  * JSON Real, cast to Float regardless of the actual type.
  *
  * @param hNumber           Handle to the JSON Number
- * @error                   Not a JSON Real or JSON Integer
+ * @error                   Invalid or closed handle.
  * @return                  Float value of hNumber,
- *                          or 0.0 on error.
+ *                          or 0.0 if hNumber is not a JSON number.
  */
 native float json_number_value(Handle hNumber);
 
@@ -715,11 +850,12 @@ native float json_number_value(Handle hNumber);
 
 /**
  * Decodes the JSON string sJSON and returns the array or object it contains.
- * Errors while decoding can be found in the sourcemod error log.
+ * Errors while decoding are written to the SourceMod error log.
+ * The returned Handle must be closed.
  *
  * @param sJSON             String containing valid JSON
-
- * @return                  Handle to JSON object or array.
+ *
+ * @return                  Handle to JSON object or array,
  *                          or INVALID_HANDLE on error.
  */
 native Handle json_load(const char[] sJSON);
@@ -727,16 +863,19 @@ native Handle json_load(const char[] sJSON);
 /**
  * Decodes the JSON string sJSON and returns the array or object it contains.
  * This function provides additional error feedback and does not log errors
- * to the sourcemod error log.
+ * to the sourcemod error log. On success sErrorText, iLine and iColumn
+ * are not changed. The returned Handle must be closed.
  *
  * @param sJSON             String containing valid JSON
  * @param sErrorText        This buffer will be filled with the error
  *                          message.
  * @param maxlen            Size of the buffer
- * @param iLine             This int will contain the line of the error
- * @param iColumn           This int will contain the column of the error
+ * @param iLine             This int will contain the line of the error,
+ *                          starting at 1.
+ * @param iColumn           This int will contain the column of the error,
+ *                          starting at 1.
  *
- * @return                  Handle to JSON object or array.
+ * @return                  Handle to JSON object or array,
  *                          or INVALID_HANDLE on error.
  */
 native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, int &iLine, int &iColumn);
@@ -744,11 +883,14 @@ native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, in
 /**
  * Decodes the JSON text in file sFilePath and returns the array or object
  * it contains.
- * Errors while decoding can be found in the sourcemod error log.
+ * Errors while decoding, and a file that can not be opened, are written
+ * to the SourceMod error log. The returned Handle must be closed.
  *
- * @param sFilePath         Path to a file containing pure JSON
+ * @param sFilePath         Path to a file containing pure JSON, relative
+ *                          to the game directory (as BuildPath() returns
+ *                          it). Prefix an absolute path with "file://".
  *
- * @return                  Handle to JSON object or array.
+ * @return                  Handle to JSON object or array,
  *                          or INVALID_HANDLE on error.
  */
 native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH]);
@@ -757,16 +899,23 @@ native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH]);
  * Decodes the JSON text in file sFilePath and returns the array or object
  * it contains.
  * This function provides additional error feedback and does not log errors
- * to the sourcemod error log.
+ * to the sourcemod error log. On success sErrorText, iLine and iColumn
+ * are not changed. The returned Handle must be closed.
  *
- * @param sFilePath         Path to a file containing pure JSON
+ * @param sFilePath         Path to a file containing pure JSON, relative
+ *                          to the game directory (as BuildPath() returns
+ *                          it). Prefix an absolute path with "file://".
  * @param sErrorText        This buffer will be filled with the error
  *                          message.
  * @param maxlen            Size of the buffer
- * @param iLine             This int will contain the line of the error
- * @param iColumn           This int will contain the column of the error
+ * @param iLine             This int will contain the line of the error,
+ *                          starting at 1, or -1 if the file can not be
+ *                          opened.
+ * @param iColumn           This int will contain the column of the error,
+ *                          starting at 1, or -1 if the file can not be
+ *                          opened.
  *
- * @return                  Handle to JSON object or array.
+ * @return                  Handle to JSON object or array,
  *                          or INVALID_HANDLE on error.
  */
 native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] sErrorText, int maxlen, int &iLine, int &iColumn);
@@ -784,14 +933,17 @@ native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] 
 
 /**
  * Saves the JSON representation of hObject in sJSON.
+ * Only objects and arrays can be encoded. Output that does not fit into
+ * sJSON is cut off.
  *
- * @param hObject           String containing valid JSON
+ * @param hObject           Handle to the JSON object or array to encode
  * @param sJSON             Buffer to store the created JSON string.
  * @param maxlength         Maximum length of string buffer.
  * @param iIndentWidth      Indenting with iIndentWidth spaces.
- *                          The valid range for this is between 0 and 31 (inclusive),
- *                          other values result in an undefined output. If this is set
- *                          to 0, no newlines are inserted between array and object items.
+ *                          The valid range for this is between 0 and 31 (inclusive);
+ *                          only the lowest 5 bits are used, so 32 acts like 0. If this
+ *                          is set to 0, no newlines are inserted between array and
+ *                          object items.
  * @param bEnsureAscii      If this is set, the output is guaranteed
  *                          to consist only of ASCII characters. This is achieved
  *                          by escaping all Unicode characters outside the ASCII range.
@@ -802,20 +954,30 @@ native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] 
  *                          into the same order in which they were first inserted to
  *                          the object. For example, decoding a JSON text and then
  *                          encoding with this flag preserves the order of object keys.
- * @return                  Length of the returned string or -1 on error.
+ *                          Ignored if bSortKeys is set. Without either flag the keys
+ *                          come in the order of the internal hash table, which can
+ *                          change between server restarts.
+ * @error                   Invalid or closed handle.
+ * @return                  Length of the whole JSON string in bytes (larger
+ *                          than or equal to maxlength if it was cut off), or
+ *                          -1 if hObject is not a JSON object or array.
  */
 native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
 
 /**
  * Write the JSON representation of hObject to the file sFilePath.
- * If sFilePath already exists, it is overwritten.
+ * If sFilePath already exists, it is overwritten. Missing directories
+ * are not created. Only objects and arrays can be encoded.
  *
- * @param hObject           String containing valid JSON
- * @param sFilePath         Buffer to store the created JSON string.
+ * @param hObject           Handle to the JSON object or array to encode
+ * @param sFilePath         Path of the file to write, relative to the game
+ *                          directory (as BuildPath() returns it). Prefix an
+ *                          absolute path with "file://".
  * @param iIndentWidth      Indenting with iIndentWidth spaces.
- *                          The valid range for this is between 0 and 31 (inclusive),
- *                          other values result in an undefined output. If this is set
- *                          to 0, no newlines are inserted between array and object items.
+ *                          The valid range for this is between 0 and 31 (inclusive);
+ *                          only the lowest 5 bits are used, so 32 acts like 0. If this
+ *                          is set to 0, no newlines are inserted between array and
+ *                          object items.
  * @param bEnsureAscii      If this is set, the output is guaranteed
  *                          to consist only of ASCII characters. This is achieved
  *                          by escaping all Unicode characters outside the ASCII range.
@@ -826,7 +988,12 @@ native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWid
  *                          into the same order in which they were first inserted to
  *                          the object. For example, decoding a JSON text and then
  *                          encoding with this flag preserves the order of object keys.
- * @return                  Length of the returned string or -1 on error.
+ *                          Ignored if bSortKeys is set. Without either flag the keys
+ *                          come in the order of the internal hash table, which can
+ *                          change between server restarts.
+ * @error                   Invalid or closed handle.
+ * @return                  True on success, false if hObject is not a JSON
+ *                          object or array or the file can not be written.
  */
 native bool json_dump_file(Handle hObject, const char[] sFilePath, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
 
@@ -838,15 +1005,21 @@ native bool json_dump_file(Handle hObject, const char[] sFilePath, int iIndentWi
  * These are some custom functions to ease the development using this
  * extension.
  *
+ * The json_array_get_* and json_object_get_* stocks require the index or
+ * key to exist. If it does not, json_typeof() raises an error. Use
+ * json_array_get() or json_object_get() to check first.
+ *
  */
 
 /**
- * Returns a handle to a new JSON string, or INVALID_HANDLE on error.
- * Formats the string according to the SourceMod format rules.
+ * Returns a handle to a new JSON string. The returned Handle must be
+ * closed.
+ * Formats the string according to the SourceMod format rules, into a
+ * buffer of 4096 bytes; longer results are cut off.
  * The result must be a valid UTF-8 encoded Unicode string.
  *
  * @param sFormat           Formatting rules.
- * @param ...			    Variable number of format parameters.
+ * @param ...               Variable number of format parameters.
  * @return                  Handle to the new String object
  */
 stock Handle json_string_format(const char[] sFormat, any ...) {
@@ -857,7 +1030,8 @@ stock Handle json_string_format(const char[] sFormat, any ...) {
 }
 
 /**
- * Returns a handle to a new JSON string, or INVALID_HANDLE on error.
+ * Returns a handle to a new JSON string. The returned Handle must be
+ * closed.
  * This stock allows to specify the size of the temporary buffer used
  * to create the string. Use this if the default of 4096 is not enough
  * for your string.
@@ -866,7 +1040,7 @@ stock Handle json_string_format(const char[] sFormat, any ...) {
  *
  * @param tmpBufferLength   Size of the temporary buffer
  * @param sFormat           Formatting rules.
- * @param ...			    Variable number of format parameters.
+ * @param ...               Variable number of format parameters.
  * @return                  Handle to the new String object
  */
 stock Handle json_string_format_ex(int tmpBufferLength, const char[] sFormat, any ...) {
@@ -883,7 +1057,8 @@ stock Handle json_string_format_ex(int tmpBufferLength, const char[] sFormat, an
  * @param hArray            Handle to JSON array to get a value from
  * @param iIndex            Position to retrieve
  *
- * @return                  True if it's a boolean and TRUE,
+ * @error                   Invalid or closed handle, or no element at position iIndex.
+ * @return                  True if the element is JSON true,
  *                          false otherwise.
  */
 stock bool json_array_get_bool(Handle hArray, int iIndex) {
@@ -901,8 +1076,9 @@ stock bool json_array_get_bool(Handle hArray, int iIndex) {
  * @param hArray            Handle to JSON array to get a value from
  * @param iIndex            Position to retrieve
  *
- * @return                  Float value,
- *                          or 0.0 if element is not a JSON Real.
+ * @error                   Invalid or closed handle, or no element at position iIndex.
+ * @return                  Float value of a JSON integer or real,
+ *                          or 0.0 if the element is not a JSON number.
  */
 stock float json_array_get_float(Handle hArray, int iIndex) {
 	Handle hElement = json_array_get(hArray, iIndex);
@@ -919,8 +1095,9 @@ stock float json_array_get_float(Handle hArray, int iIndex) {
  * @param hArray            Handle to JSON array to get a value from
  * @param iIndex            Position to retrieve
  *
- * @return                  Integer value,
- *                          or 0 if element is not a JSON Integer.
+ * @error                   Invalid or closed handle, or no element at position iIndex.
+ * @return                  Integer value, or 0 if the element is not
+ *                          a JSON integer (also for a JSON real).
  */
 stock int json_array_get_int(Handle hArray, int iIndex) {
 	Handle hElement = json_array_get(hArray, iIndex);
@@ -940,8 +1117,10 @@ stock int json_array_get_int(Handle hArray, int iIndex) {
  * @param sBuffer           Buffer to store the value of the String.
  * @param maxlength         Maximum length of string buffer.
  *
- * @error                   Element is not a JSON String.
- * @return                  Length of the returned string or -1 on error.
+ * @error                   Invalid or closed handle, or no element at position iIndex.
+ * @return                  Length of the whole string in bytes, or -1
+ *                          if the element is not a JSON string (the
+ *                          buffer is then not changed).
  */
 stock int json_array_get_string(Handle hArray, int iIndex, char[] sBuffer, int maxlength) {
 	Handle hElement = json_array_get(hArray, iIndex);
@@ -959,9 +1138,10 @@ stock int json_array_get_string(Handle hArray, int iIndex, char[] sBuffer, int m
  * Returns the boolean value of the element in hObj at entry sKey.
  *
  * @param hObj              Handle to JSON object to get a value from
- * @param sKey              Entry to retrieve
+ * @param sKey              Key to retrieve
  *
- * @return                  True if it's a boolean and TRUE,
+ * @error                   Invalid or closed handle, or no element at entry sKey.
+ * @return                  True if the element is JSON true,
  *                          false otherwise.
  */
 stock bool json_object_get_bool(Handle hObj, const char[] sKey) {
@@ -977,10 +1157,11 @@ stock bool json_object_get_bool(Handle hObj, const char[] sKey) {
  * Returns the float value of the element in hObj at entry sKey.
  *
  * @param hObj              Handle to JSON object to get a value from
- * @param sKey              Position to retrieve
+ * @param sKey              Key to retrieve
  *
- * @return                  Float value,
- *                          or 0.0 if element is not a JSON Real.
+ * @error                   Invalid or closed handle, or no element at entry sKey.
+ * @return                  Float value of a JSON integer or real,
+ *                          or 0.0 if the element is not a JSON number.
  */
 stock float json_object_get_float(Handle hObj, const char[] sKey) {
 	Handle hElement = json_object_get(hObj, sKey);
@@ -995,10 +1176,11 @@ stock float json_object_get_float(Handle hObj, const char[] sKey) {
  * Returns the integer value of the element in hObj at entry sKey.
  *
  * @param hObj              Handle to JSON object to get a value from
- * @param sKey              Position to retrieve
+ * @param sKey              Key to retrieve
  *
- * @return                  Integer value,
- *                          or 0 if element is not a JSON Integer.
+ * @error                   Invalid or closed handle, or no element at entry sKey.
+ * @return                  Integer value, or 0 if the element is not
+ *                          a JSON integer (also for a JSON real).
  */
 stock int json_object_get_int(Handle hObj, const char[] sKey) {
 	Handle hElement = json_object_get(hObj, sKey);
@@ -1014,12 +1196,14 @@ stock int json_object_get_int(Handle hObj, const char[] sKey) {
  * as a null terminated UTF-8 encoded string in the passed buffer.
  *
  * @param hObj              Handle to JSON object to get a value from
- * @param sKey              Entry to retrieve
+ * @param sKey              Key to retrieve
  * @param sBuffer           Buffer to store the value of the String.
  * @param maxlength         Maximum length of string buffer.
  *
- * @error                   Element is not a JSON String.
- * @return                  Length of the returned string or -1 on error.
+ * @error                   Invalid or closed handle, or no element at entry sKey.
+ * @return                  Length of the whole string in bytes, or -1
+ *                          if the element is not a JSON string (the
+ *                          buffer is then not changed).
  */
 stock int json_object_get_string(Handle hObj, const char[] sKey, char[] sBuffer, int maxlength) {
 	Handle hElement = json_object_get(hObj, sKey);
@@ -1038,7 +1222,7 @@ stock int json_object_get_string(Handle hObj, const char[] sKey, char[] sBuffer,
 /**
  * Pack String Rules
  *
- * Here�s the full list of format characters:
+ * Here's the full list of format characters:
  *  n    Output a JSON null value. No argument is consumed.
  *  s    Output a JSON string, consuming one argument.
  *  b    Output a JSON bool value, consuming one argument.
@@ -1048,12 +1232,13 @@ stock int json_object_get_string(Handle hObj, const char[] sKey, char[] sBuffer,
  *  []   Build an array with contents from the inner format string,
  *       recursive value building is supported.
  *       No argument is consumed.
- *  {}   Build an array with contents from the inner format string.
+ *  {}   Build an object with contents from the inner format string.
  *       The first, third, etc. format character represent a key,
  *       and must be s (as object keys are always strings). The
  *       second, fourth, etc. format character represent a value.
  *       Recursive value building is supported.
  *       No argument is consumed.
+ *  Spaces, ':' and ',' are ignored and can be used for readability.
  *
  */
 
@@ -1061,16 +1246,23 @@ stock int json_object_get_string(Handle hObj, const char[] sKey, char[] sBuffer,
  * This method can be used to create json objects/arrays directly
  * without having to create the structure.
  * See 'Pack String Rules' for more details.
+ * The returned Handle must be closed.
  *
- * @param sPackString       Pack string similiar to Format()s fmt.
- *                          See 'Pack String Rules'.
+ * @param sPackString       Pack string similar to the format string of
+ *                          Format(). See 'Pack String Rules'.
  * @param hParams           ADT Array containing all keys and values
- *                          in the order they appear in the pack string.
+ *                          in the order they appear in the pack string:
+ *                          strings and keys added with PushString()
+ *                          (at most 254 bytes are used), other values
+ *                          with Push(). The used values are removed
+ *                          from hParams; the caller must still close it.
  *
- * @error                   Invalid pack string or pack string and
- *                          ADT Array don't match up regarding type
- *                          or size.
- * @return                  Handle to JSON element.
+ * @error                   hParams has fewer values than the pack string
+ *                          needs. An unknown character in the pack string
+ *                          calls SetFailState() and stops the plugin.
+ * @return                  Handle to JSON element, or INVALID_HANDLE if
+ *                          an object key in the pack string is not s
+ *                          (the error is logged).
  */
 stock Handle json_pack(const char[] sPackString, ArrayList hParams) {
 	int iPos = 0;
