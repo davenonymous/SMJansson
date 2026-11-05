@@ -42,13 +42,6 @@ for cxx in builder.targets:
       os.path.join(Extension.jansson_root, 'src', 'utf.c'),
       os.path.join(Extension.jansson_root, 'src', 'value.c'),
       os.path.join(Extension.sm_root, 'public', 'smsdk_ext.cpp'),
-      os.path.join(Extension.sm_root, 'public', 'asm', 'asm.c'),
-      os.path.join(Extension.sm_root, 'public', 'libudis86', 'decode.c'),
-      os.path.join(Extension.sm_root, 'public', 'libudis86', 'itab.c'),
-      os.path.join(Extension.sm_root, 'public', 'libudis86', 'syn-att.c'),
-      os.path.join(Extension.sm_root, 'public', 'libudis86', 'syn-intel.c'),
-      os.path.join(Extension.sm_root, 'public', 'libudis86', 'syn.c'),
-      os.path.join(Extension.sm_root, 'public', 'libudis86', 'udis86.c'),
     ]
 
     Extension.extensions += [builder.Add(binary)]
