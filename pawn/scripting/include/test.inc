@@ -1,3 +1,5 @@
+#include <regex>
+
 stock bool Test_SetFilename(StringMap hTest, const char[] value) {
 	return hTest.SetString("filename", value);
 }
