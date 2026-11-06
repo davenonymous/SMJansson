@@ -88,16 +88,11 @@ class ExtensionConfig(object):
       raise Exception('Could not find a source copy of SourceMod')
     self.sm_root = Normalize(self.sm_root)
 
+    # The bundled jansson, unless --jansson-path names another source copy
     if builder.options.jansson_path:
       self.jansson_root = builder.options.jansson_path
     else:
-      self.jansson_root = ResolveEnvPath('JANSSONSOURCE26', 'jansson-2.6')
-      if not self.jansson_root:
-        self.jansson_root = ResolveEnvPath('JANSSONSOURCE_DEV', 'jansson-source')
-      if not self.jansson_root:
-        self.jansson_root = ResolveEnvPath('JANSSONSOURCE_DEV', 'jansson-central')
-      if not self.jansson_root:
-        self.jansson_root = ResolveEnvPath('JANSSONSOURCE_DEV', 'jansson')
+      self.jansson_root = os.path.join(builder.sourcePath, 'jansson')
 
     if not self.jansson_root or not os.path.isdir(self.jansson_root):
       raise Exception('Could not find a source copy of jansson')

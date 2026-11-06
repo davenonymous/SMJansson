@@ -30,7 +30,7 @@
  */
 
 #include "extension.h"
-#include "jansson/src/jansson.h"
+#include <jansson.h>
 #include <string.h>
 /**
  * @file extension.cpp
