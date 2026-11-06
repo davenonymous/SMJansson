@@ -1,6 +1,7 @@
 # Builds SMJansson for Linux and Windows (x86 and x86_64) on every push, pull
 # request and manual run, and packs each platform into an archive that is laid
-# out like a game folder. For a pushed v* tag it also publishes these archives
+# out like a game folder. On Linux it also compiles the test plugin, with the
+# SourcePawn compiler of the same SourceMod. For a pushed v* tag it also publishes these archives
 # as a GitHub release, after checking that the tag matches the version the
 # extension reports.
 
@@ -82,6 +83,34 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Build the SourcePawn compiler
+        if: matrix.os == 'linux'
+        working-directory: sourcemod
+        run: |
+          mkdir build
+          cd build
+          export CC=clang CXX=clang++
+          python ../configure.py --scripting-only --enable-optimize --targets=x86_64
+          ambuild
+
+      - name: Compile the test plugin
+        if: matrix.os == 'linux'
+        working-directory: extension/pawn/scripting
+        run: |
+          # spcomp finds SourceMod's includes next to it. -E fails on warnings too,
+          # so the includes stay free of them.
+          ../../../sourcemod/build/package/spcomp64 -E -i include \
+            -o "$GITHUB_WORKSPACE/smjansson.test.smx" smjansson.test.sp
+
+      - name: Upload the test plugin
+        if: matrix.os == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          # Not smjansson-*, which the release job downloads into the release.
+          name: test-plugin
+          path: smjansson.test.smx
+          if-no-files-found: error
 
       - name: Pack
         id: pack
