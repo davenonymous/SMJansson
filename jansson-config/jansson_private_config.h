@@ -4,7 +4,8 @@
  * Jansson's private build configuration for the AMBuild build of SMJansson,
  * written by hand from jansson/cmake/jansson_private_config.h.cmake with the
  * values Jansson's CMake build detects on Linux with GCC or clang. The MSVC
- * branch follows the same template for Windows but has not been tested.
+ * branch follows the same template for Windows; it builds with Visual Studio
+ * 2022 but has not been run on a server.
  * Jansson reads this file when HAVE_CONFIG_H is defined (see AMBuilder).
  */
 

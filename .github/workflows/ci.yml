@@ -1,116 +1,175 @@
+# Builds SMJansson for Linux and Windows (x86 and x86_64) on every push, pull
+# request and manual run, and packs each platform into an archive that is laid
+# out like a game folder. For a pushed v* tag it also publishes these archives
+# as a GitHub release, after checking that the tag matches the version the
+# extension reports.
+
 name: CI
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  SOURCEMOD_BRANCH: 1.12-dev
+  # SMJansson's binaries may require at most this glibc version.
+  MAX_GLIBC: '2.29'
 
 jobs:
   build:
-    name: Build
-    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
-        sourcemod-version: [1.11-dev]
         include:
-          - os: ubuntu-20.04
-            target-archs: x86,x86_64
-            sdks: sdk2013
+          - os: linux
+            runner: ubuntu-22.04
+          - os: windows
+            runner: windows-2022
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Install Linux packages
-        if: runner.os == 'Linux'
+        if: matrix.os == 'linux'
         run: |
-          sudo apt update
-          sudo apt install -yq --no-install-recommends g++-multilib libjansson-dev
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
+          sudo apt-get update
+          sudo apt-get install -yq --no-install-recommends clang gcc-multilib g++-multilib
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           path: extension
 
       - name: Checkout SourceMod
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: alliedmodders/sourcemod
-          ref: ${{ matrix.sourcemod-version }}
+          ref: ${{ env.SOURCEMOD_BRANCH }}
           path: sourcemod
           submodules: recursive
 
-      - name: Checkout AMBuild
-        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          repository: alliedmodders/ambuild
-          path: ambuild
-
-      - name: Checkout sm-ext-common
-        uses: actions/checkout@v2
-        with:
-          repository: srcdslab/sm-ext-common
-          path: sourcemod/extensions/sm-ext-common
-
-      - name: Install sourcemod dependencies
-        run: |
-          bash sourcemod/tools/checkout-deps.sh -m -s ${{ matrix.sdks }}
+          python-version: '3.12'
 
       - name: Install AMBuild
-        uses: BSFishy/pip-action@v1
-        with:
-          packages: ./ambuild
+        run: pip install git+https://github.com/alliedmodders/ambuild
 
       - name: Build
-        working-directory: extension
-        shell: bash
-        env:
-          BREAKPAD_SYMBOL_SERVER: ${{ secrets.BREAKPAD_SYMBOL_SERVER }}
+        working-directory: extension/build
         run: |
-          mkdir build && cd build
-          python ../configure.py --enable-optimize --targets=${{ matrix.target-archs }} --sdks=${{ matrix.sdks }}
+          # On Windows AMBuild finds Visual Studio by itself.
+          if [ "${{ matrix.os }}" = linux ]; then
+            export CC=clang CXX=clang++
+          fi
+          python ../configure.py --enable-optimize --targets=x86,x86_64 --sm-path=../../sourcemod
           ambuild
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ runner.os }}
-          path: extension/build/package
+      - name: Check the glibc version the binaries need
+        if: matrix.os == 'linux'
+        working-directory: extension/build/package/addons/sourcemod/extensions
+        run: |
+          for binary in smjansson.ext.so x64/smjansson.ext.so; do
+            needed=$(objdump -T "$binary" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -1)
+            echo "$binary needs glibc $needed"
+            if [ "$(printf '%s\n%s\n' "$needed" "$MAX_GLIBC" | sort -V | tail -1)" != "$MAX_GLIBC" ]; then
+              echo "::error::$binary needs glibc $needed, more than $MAX_GLIBC"
+              exit 1
+            fi
+          done
 
+      - name: Pack
+        id: pack
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            label="$GITHUB_REF_NAME"
+          else
+            label="${GITHUB_SHA::7}"
+          fi
+
+          package=extension/build/package/addons/sourcemod
+          stage=stage/addons/sourcemod
+          mkdir -p "$stage/extensions/x64" "$stage/scripting/include" \
+            "$stage/licenses/smjansson/licenses" "$stage/licenses/smjansson/jansson"
+
+          if [ "${{ matrix.os }}" = linux ]; then
+            strip --strip-debug -o "$stage/extensions/smjansson.ext.so" "$package/extensions/smjansson.ext.so"
+            strip --strip-debug -o "$stage/extensions/x64/smjansson.ext.so" "$package/extensions/x64/smjansson.ext.so"
+          else
+            cp "$package/extensions/smjansson.ext.dll" "$stage/extensions/"
+            cp "$package/extensions/x64/smjansson.ext.dll" "$stage/extensions/x64/"
+          fi
+          cp extension/pawn/scripting/include/smjansson.inc "$stage/scripting/include/"
+          cp extension/LICENSE.txt "$stage/licenses/smjansson/"
+          cp extension/licenses/GPLv2.txt extension/licenses/GPLv3.txt "$stage/licenses/smjansson/licenses/"
+          cp extension/jansson/LICENSE "$stage/licenses/smjansson/jansson/"
+
+          cd stage
+          if [ "${{ matrix.os }}" = linux ]; then
+            archive="smjansson-$label-linux.tar.gz"
+            tar -czf "../$archive" addons
+          else
+            archive="smjansson-$label-windows.zip"
+            7z a -tzip "../$archive" addons > /dev/null
+          fi
+          cd ..
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "Contents of $archive:"
+          find stage -type f | sort
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: smjansson-${{ matrix.os }}
+          path: ${{ steps.pack.outputs.archive }}
+          if-no-files-found: error
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
 
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Package
+      - name: Check that the tag matches the extension version
         run: |
-          version=`echo $GITHUB_REF | sed "s/refs\/tags\///"`
-          ls -Rall
-          if [ -d "./Linux/" ]; then
-            cd ./Linux/
-            tar -czf ../${{ github.event.repository.name }}-${version}-linux.tar.gz -T <(\ls -1)
-            cd -
+          # Tag vX-Y belongs to SMEXT_CONF_VERSION "X/Y", e.g. v2.15.1-1 and "2.15.1/1".
+          tag="$GITHUB_REF_NAME"
+          if [[ ! "$tag" =~ ^v([^-]+)-([^-]+)$ ]]; then
+            echo "::error::Tag $tag is not of the form v<jansson version>-<revision>, e.g. v2.15.1-1"
+            exit 1
           fi
-          if [ -d "./macOS/" ]; then
-            cd ./macOS/
-            tar -czf ../${{ github.event.repository.name }}-${version}-mac.tar.gz -T <(\ls -1)
-            cd -
+          expected="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+          actual=$(sed -n 's/^#define SMEXT_CONF_VERSION[[:space:]]*"\(.*\)"/\1/p' sdk/smsdk_config.h)
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::Tag $tag means version $expected, but sdk/smsdk_config.h says $actual"
+            exit 1
           fi
-          if [ -d "./Windows/" ]; then
-            cd ./Windows/
-            tar -czf ../${{ github.event.repository.name }}-${version}-windows.tar.gz -T <(\ls -1)
-            cd -
-          fi
+          echo "Version $actual matches tag $tag"
 
-      - name: Release
-        uses: svenstaro/upload-release-action@v2
+      - name: Download archives
+        uses: actions/download-artifact@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: '*.tar.gz'
-          tag: ${{ github.ref }}
-          file_glob: true
+          path: archives
+          pattern: smjansson-*
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" archives/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag

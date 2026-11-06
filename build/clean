@@ -1,4 +1,2 @@
 #!/bin/bash
-rm -rf package smjansson.ext.2.tf2 .ambuild2
-cd ..
-rm -rf hl2sdk-manifests
+rm -rf package smjansson.ext .ambuild2

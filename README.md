@@ -29,25 +29,35 @@ meanings as in the Jansson C library. There are no methodmaps.
 - [Troubleshooting](#troubleshooting)
 - [What SMJansson cannot do](#what-smjansson-cannot-do)
 - [Building from source](#building-from-source)
+- [Making a release](#making-a-release)
 - [License](#license)
 
 ## Installation
 
-You need SourceMod on the game server. SMJansson needs no other extension and no configuration.
+You need SourceMod on the game server. SMJansson needs no other extension and no configuration. The same files work
+for every game SourceMod supports.
 
-1. Build the extension (see [Building from source](#building-from-source)) or take the files from a release.
-2. Copy the extension binary into the server's SourceMod directory:
+1. Download the archive for your server's operating system from the
+   [releases](https://github.com/davenonymous/SMJansson/releases): `smjansson-<version>-linux.tar.gz` for Linux or
+   `smjansson-<version>-windows.zip` for Windows.
+2. Extract it into the game folder, the folder that contains `addons/` (for Team Fortress 2 that is `tf/`). It adds
+   these files:
 
-   | Server | Copy this file | To this directory |
-   |---|---|---|
-   | 32-bit Linux server | `smjansson.ext.2.<game>.so` | `addons/sourcemod/extensions/` |
-   | 64-bit Linux server | `smjansson.ext.2.<game>.so` (the x86_64 build) | `addons/sourcemod/extensions/x64/` |
+   | File | Purpose |
+   |---|---|
+   | `addons/sourcemod/extensions/smjansson.ext.so` (Linux) or `.dll` (Windows) | The extension for 32-bit servers. |
+   | `addons/sourcemod/extensions/x64/smjansson.ext.so` (Linux) or `.dll` (Windows) | The extension for 64-bit servers. |
+   | `addons/sourcemod/scripting/include/smjansson.inc` | The include file for compiling plugins. The server does not need it. |
+   | `addons/sourcemod/licenses/smjansson/` | The license texts of SMJansson and Jansson. |
 
-   `<game>` is the SDK the binary was built for, for example `tf2` for Team Fortress 2. A binary built for one game
-   does not load on another game. Copying both rows is fine; SourceMod picks the one that matches the server.
+   SourceMod uses the binary that matches the server: a 32-bit server the one in `extensions/`, a 64-bit server the
+   one in `extensions/x64/`. Keeping both is fine.
 
-3. Copy `pawn/scripting/include/smjansson.inc` to `addons/sourcemod/scripting/include/` on the machine where you
-   compile your plugins. The server itself does not need it.
+3. Copy `smjansson.inc` to `addons/sourcemod/scripting/include/` on the machine where you compile your plugins, if
+   that is not the server.
+
+The Linux binaries need glibc 2.29 or newer (any Linux distribution released since 2019). To build the files
+yourself instead, see [Building from source](#building-from-source).
 
 You do not need to load the extension yourself. SourceMod loads it the first time a plugin that includes
 `smjansson.inc` is loaded.
@@ -57,8 +67,6 @@ To check that it is loaded, run `sm exts list` in the server console. The list c
 ```
 [05] SMJansson (2.15.1/1): JSON parser/writer
 ```
-
-The files in `bin/` are old 32-bit binaries from 2014. They are not built from the current source; do not use them.
 
 ## Using SMJansson in a plugin
 
@@ -1684,8 +1692,9 @@ A parse function, `json_dump_ex` or `json_dump_file_ex` got a flag it does not k
 The format string of `json_pack` is wrong (see [json_pack](#json_pack)).
 
 **`Required extension "SMJansson" file("smjansson.ext") not running`**
-Your plugin does not load because SMJansson is not installed, or the installed binary was built for another game or
-architecture (see [Installation](#installation)). Run `sm exts list` to see whether it is loaded.
+Your plugin does not load because SMJansson is not installed, or the binary for your server's architecture is
+missing: a 64-bit server needs `extensions/x64/` (see [Installation](#installation)). Run `sm exts list` to see
+whether it is loaded.
 
 **The output of `json_dump` is cut off**
 The buffer is too small. Compare the return value with the buffer size (see
@@ -1708,44 +1717,46 @@ and `JanssonIterator`, with the plugin that owns them.
 
 ## Building from source
 
+SMJansson uses only SourceMod's extension interface, so it is built once per operating system and architecture, not
+once per game; it needs neither Metamod:Source nor a game SDK.
+
 You need:
 
 - Python 3 and [AMBuild](https://github.com/alliedmodders/ambuild) 2.2 or later,
-- a C++17 compiler (clang 5 or later, GCC 9 or later, or MSVC 2017 15.7 or later),
-- source checkouts of [SourceMod](https://github.com/alliedmodders/sourcemod) (with its submodules),
-  [Metamod:Source](https://github.com/alliedmodders/metamod-source) and the
-  [hl2sdk](https://github.com/alliedmodders/hl2sdk) branch of each game you build for, in a directory named
-  `hl2sdk-<game>` (for example `hl2sdk-tf2`).
+- a C++17 compiler: clang 5 or later or GCC 9 or later on Linux (with the 32-bit libraries, `gcc-multilib` and
+  `g++-multilib` on Debian and Ubuntu, for 32-bit builds), Visual Studio 2017 15.7 or later on Windows,
+- a source checkout of [SourceMod](https://github.com/alliedmodders/sourcemod) with its submodules, branch
+  `1.12-dev`.
 
-Steps, with `/path/to/` replaced by your paths:
+Steps on Linux, with `/path/to/sourcemod` replaced by your path:
 
 ```
 git clone https://github.com/davenonymous/SMJansson.git
-cd SMJansson
-ln -s /path/to/sourcemod/hl2sdk-manifests hl2sdk-manifests
-cd build
-python3 ../configure.py --enable-optimize --sdks=tf2 --targets=x86,x86_64 \
-    --hl2sdk-root=/path/to/sdks --mms-path=/path/to/metamod-source --sm-path=/path/to/sourcemod
+cd SMJansson/build
+python3 ../configure.py --enable-optimize --targets=x86,x86_64 --sm-path=/path/to/sourcemod
 ambuild
 ```
 
-- `hl2sdk-manifests` is the directory of that name in the SourceMod checkout. It must be linked (or copied) into the
-  SMJansson directory.
+On Windows the steps are the same in a command prompt (`python` instead of `python3`). AMBuild finds Visual Studio
+by itself. If you start it from a Visual Studio developer command prompt instead, it uses only that prompt's
+architecture: then build `--targets=x86` and `--targets=x86_64` in two separate build directories, each from the
+matching prompt.
+
 - The `build/` directory already exists in the repository; configure and build inside it.
-- `--hl2sdk-root` is the directory that contains the `hl2sdk-<game>` directories.
-- `--sdks` is a comma-separated list of games, for example `tf2,css`.
 - `--targets` is `x86` for 32-bit servers, `x86_64` for 64-bit servers, or both.
 - The bundled Jansson in `jansson/` is found automatically. `--jansson-path` points to another copy of Jansson
   2.15.1.
 - Jansson's build settings are in `jansson-config/` (`jansson_config.h` and `jansson_private_config.h`), written by
   hand in place of the ones Jansson's own build would generate, so that `jansson/` stays an unchanged copy of the
-  release. They are tested with GCC and clang on Linux; the MSVC branch for Windows has not been tested.
+  release. Builds with clang on Linux are tested on Team Fortress 2 servers; builds with Visual Studio 2022 on
+  Windows compile and link, but have not been run on a server.
 
-The result is in `build/package/`, laid out like a server's `addons/sourcemod/` directory:
+The result is in `build/package/`, laid out like a server's `addons/sourcemod/` directory (`.dll` instead of `.so`
+on Windows):
 
 ```
-build/package/addons/sourcemod/extensions/smjansson.ext.2.tf2.so       (32-bit)
-build/package/addons/sourcemod/extensions/x64/smjansson.ext.2.tf2.so   (64-bit)
+build/package/addons/sourcemod/extensions/smjansson.ext.so       (32-bit)
+build/package/addons/sourcemod/extensions/x64/smjansson.ext.so   (64-bit)
 build/package/addons/sourcemod/scripting/include/smjansson.inc
 build/package/addons/sourcemod/scripting/include/test.inc
 build/package/addons/sourcemod/scripting/smjansson.test.sp
@@ -1753,6 +1764,25 @@ build/package/addons/sourcemod/scripting/smjansson.test.sp
 
 `smjansson.test.sp` is a test plugin that calls every native and prints the results to the server console. It needs
 `test.inc`.
+
+## Making a release
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` builds Linux and Windows on every push and pull request and
+keeps the archives as workflow artifacts. Pushing a tag that starts with `v` also publishes a release with both
+archives:
+
+1. Set the version in `sdk/smsdk_config.h`, for example `#define SMEXT_CONF_VERSION "2.15.1/1"` (Jansson version,
+   then the revision of SMJansson for that Jansson version).
+2. Commit and push.
+3. Tag the commit with the same version, written as `v<Jansson version>-<revision>`, and push the tag:
+
+```
+git tag v2.15.1-1
+git push origin v2.15.1-1
+```
+
+The release is only published if the tag matches `SMEXT_CONF_VERSION` ("v2.15.1-1" and "2.15.1/1"); otherwise the
+workflow fails. Its notes list the changes since the previous release.
 
 ## License
 

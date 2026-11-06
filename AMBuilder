@@ -4,13 +4,7 @@ import os
 projectName = 'smjansson'
 
 for cxx in builder.targets:
-  for sdk_name in Extension.sdks:
-    sdk = Extension.sdks[sdk_name]
-
-    if not cxx.target.arch in sdk['platforms'][cxx.target.platform]:
-      continue
-
-    binary = Extension.HL2Library(builder, cxx, projectName + ".ext." + sdk['extension'], sdk)
+    binary = Extension.ExtLibrary(builder, cxx, projectName + ".ext")
 
     binary.compiler.defines += [
       'HAVE_STRING_H',
