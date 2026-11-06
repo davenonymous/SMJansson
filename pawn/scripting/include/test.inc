@@ -61,7 +61,7 @@ stock StringMap Test_New(int count) {
 }
 
 stock void Test_Deherit(StringMap hObj) {
-
+	#pragma unused hObj
 }
 
 stock void Test_Destroy(StringMap hObj) {
