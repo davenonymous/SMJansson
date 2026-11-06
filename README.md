@@ -1746,6 +1746,11 @@ matching prompt.
 - `--targets` is `x86` for 32-bit servers, `x86_64` for 64-bit servers, or both.
 - The bundled Jansson in `jansson/` is found automatically. `--jansson-path` points to another copy of Jansson
   2.15.1.
+- `--system-jansson` links the installed Jansson instead, 2.13 or later, which the compiler has to find by itself:
+  on Linux the distribution's package (e.g. `libjansson-dev`, and its 32-bit version for `x86`), on Windows a
+  `jansson.lib` in the paths of the `INCLUDE` and `LIB` environment variables. On Windows it should be a static
+  library, like vcpkg's `x86-windows-static` and `x64-windows-static` triplets: Windows doesn't look for a
+  `jansson.dll` next to the extension when the server loads it.
 - Jansson's build settings are in `jansson-config/` (`jansson_config.h` and `jansson_private_config.h`), written by
   hand in place of the ones Jansson's own build would generate, so that `jansson/` stays an unchanged copy of the
   release. Builds with clang on Linux are tested on Team Fortress 2 servers; builds with Visual Studio 2022 on

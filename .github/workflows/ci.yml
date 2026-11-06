@@ -129,6 +129,50 @@ jobs:
           path: ${{ steps.pack.outputs.archive }}
           if-no-files-found: error
 
+  system-jansson:
+    name: Build (linux, system jansson)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -yq --no-install-recommends clang libjansson-dev
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: extension
+
+      - name: Checkout SourceMod
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/sourcemod
+          ref: ${{ env.SOURCEMOD_BRANCH }}
+          path: sourcemod
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install AMBuild
+        run: pip install git+https://github.com/alliedmodders/ambuild
+
+      # Only x86_64, which needs no 32-bit packages.
+      - name: Build
+        working-directory: extension/build
+        run: |
+          export CC=clang CXX=clang++
+          python ../configure.py --enable-optimize --targets=x86_64 --sm-path=../../sourcemod --system-jansson
+          ambuild
+
+      - name: Check that the extension links the system jansson
+        run: |
+          binary=extension/build/package/addons/sourcemod/extensions/x64/smjansson.ext.so
+          readelf -d "$binary" | grep 'NEEDED.*libjansson'
+
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')

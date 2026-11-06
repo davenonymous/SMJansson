@@ -31,6 +31,13 @@
 
 #include "extension.h"
 #include <jansson.h>
+
+// The newest functions used are from jansson 2.13 (json_object_update_recursive()), which
+// matters with --system-jansson
+#if JANSSON_VERSION_HEX < 0x020d00
+#error "SMJansson needs jansson 2.13 or later"
+#endif
+
 #include <string.h>
 /**
  * @file extension.cpp

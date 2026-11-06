@@ -88,13 +88,18 @@ class ExtensionConfig(object):
       raise Exception('Could not find a source copy of SourceMod')
     self.sm_root = Normalize(self.sm_root)
 
-    # The bundled jansson, unless --jansson-path names another source copy
+    # The installed jansson, found by the compiler, or else a source copy: the bundled one, unless
+    # --jansson-path names another
+    if builder.options.system_jansson:
+      if builder.options.jansson_path:
+        raise Exception('--system-jansson and --jansson-path exclude each other')
+      return
     if builder.options.jansson_path:
       self.jansson_root = builder.options.jansson_path
     else:
       self.jansson_root = os.path.join(builder.sourcePath, 'jansson')
 
-    if not self.jansson_root or not os.path.isdir(self.jansson_root):
+    if not os.path.isdir(self.jansson_root):
       raise Exception('Could not find a source copy of jansson')
     self.jansson_root = Normalize(self.jansson_root)
 
@@ -366,10 +371,11 @@ class ExtensionConfig(object):
       os.path.join(self.sm_root, 'public', 'amtl', 'amtl'),
       os.path.join(self.sm_root, 'public', 'amtl'),
     ]
-    compiler.includes += [
-      os.path.join(builder.sourcePath, 'jansson-config'),
-      os.path.join(self.jansson_root, 'src'),
-    ]
+    if self.jansson_root:
+      compiler.includes += [
+        os.path.join(builder.sourcePath, 'jansson-config'),
+        os.path.join(self.jansson_root, 'src'),
+      ]
     return compiler
 
   def ExtLibrary(self, context, compiler, name):

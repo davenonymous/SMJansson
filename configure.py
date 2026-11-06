@@ -24,6 +24,8 @@ parser.options.add_argument('--sm-path', type=str, dest='sm_path', default=None,
                        help='Path to SourceMod')
 parser.options.add_argument('--jansson-path', type=str, dest='jansson_path', default=None,
                        help='Path to a jansson source (default: the bundled one)')
+parser.options.add_argument('--system-jansson', action='store_true', dest='system_jansson',
+                       help='Link the installed jansson (2.13 or later) instead of building one')
 parser.options.add_argument('--enable-debug', action='store_const', const='1', dest='debug',
                        help='Enable debugging symbols')
 parser.options.add_argument('--enable-optimize', action='store_const', const='1', dest='opt',
