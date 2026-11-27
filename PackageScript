@@ -9,7 +9,6 @@ builder.SetBuildFolder('package')
 folder_list = [
   'addons/sourcemod/extensions',
   'addons/sourcemod/scripting/include',
-  'addons/sourcemod/scripting',
 ]
 
 if 'x86_64' in Extension.target_archs:
@@ -39,17 +38,9 @@ def CopyFiles(src, dest, files):
     source_path = os.path.join(builder.sourcePath, src, source_file)
     builder.AddCopy(source_path, dest_entry)
 
-# Sourcemod Files
-CopyFiles('pawn/scripting', 'addons/sourcemod/scripting',
-  [
-    'smjansson.test.sp'
-  ]
-)
-
 # Include Files
 CopyFiles('pawn/scripting/include', 'addons/sourcemod/scripting/include',
   [
     'smjansson.inc',
-    'test.inc'
   ]
 )
