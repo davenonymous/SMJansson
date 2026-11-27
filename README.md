@@ -29,6 +29,7 @@ meanings as in the Jansson C library. There are no methodmaps.
 - [Troubleshooting](#troubleshooting)
 - [What SMJansson cannot do](#what-smjansson-cannot-do)
 - [Building from source](#building-from-source)
+- [Tests](#tests)
 - [Making a release](#making-a-release)
 - [License](#license)
 
@@ -1763,17 +1764,30 @@ on Windows):
 build/package/addons/sourcemod/extensions/smjansson.ext.so       (32-bit)
 build/package/addons/sourcemod/extensions/x64/smjansson.ext.so   (64-bit)
 build/package/addons/sourcemod/scripting/include/smjansson.inc
-build/package/addons/sourcemod/scripting/include/test.inc
-build/package/addons/sourcemod/scripting/smjansson.test.sp
 ```
 
-`smjansson.test.sp` is a test plugin that calls every native and prints the results to the server console. It needs
-`test.inc`.
+## Tests
+
+`tests/test_smjansson.sp` tests every native and stock of `smjansson.inc` as a plugin calls them: the values, which
+natives close the Handle they are given, the return values on failure, the decoding and encoding flags, the error codes
+and the native errors. It runs under [sm-runner](https://github.com/davenonymous/sm-runner)'s smrunner, a simulated
+server. Compile it with `pawn/scripting/include` and smrunner's `share/include` on the include path, then run it against
+the built extensions:
+
+```
+spcomp64 -i pawn/scripting/include -i <smrunner>/share/include tests/test_smjansson.sp -o test_smjansson.smx
+smrunner test test_smjansson.smx --extensions build/package/addons/sourcemod/extensions
+smrunner64 test test_smjansson.smx --extensions build/package/addons/sourcemod/extensions
+```
+
+`smrunner` loads the 32-bit extension, `smrunner64` the 64-bit one. The tests write files below the game folder's
+`cfg/` and one file in `/tmp`, which they delete again.
 
 ## Making a release
 
 The GitHub Actions workflow in `.github/workflows/ci.yml` builds Linux and Windows on every push and pull request and
-keeps the archives as workflow artifacts. Pushing a tag that starts with `v` also publishes a release with both
+keeps the archives as workflow artifacts. On Linux it runs the tests against the packed extensions with both runners,
+and a separate job checks `pawn/` and `tests/` with pawncritic and `pawntidy --check`. Pushing a tag that starts with `v` also publishes a release with both
 archives:
 
 1. Set the version in `sdk/smsdk_config.h`, for example `#define SMEXT_CONF_VERSION "2.15.1/1"` (Jansson version,

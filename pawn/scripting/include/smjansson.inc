@@ -1,8 +1,7 @@
 #if defined _jansson_included_
-	#endinput
+#endinput
 #endif
 #define _jansson_included_
-
 
 /**
  * --- Type
@@ -82,22 +81,38 @@ native json_type json_typeof(Handle hObj);
  * @return                  False if the type does not exist.
  */
 stock bool Stringify_json_type(json_type input, char[] output, int maxlength) {
-	switch(input) {
-		case JSON_OBJECT:		strcopy(output, maxlength, "Object");
-		case JSON_ARRAY:		strcopy(output, maxlength, "Array");
-		case JSON_STRING:		strcopy(output, maxlength, "String");
-		case JSON_INTEGER:		strcopy(output, maxlength, "Integer");
-		case JSON_REAL:			strcopy(output, maxlength, "Real");
-		case JSON_TRUE:			strcopy(output, maxlength, "True");
-		case JSON_FALSE:		strcopy(output, maxlength, "False");
-		case JSON_NULL:			strcopy(output, maxlength, "Null");
-		default: return false;
+	switch (input) {
+		case JSON_OBJECT: {
+			strcopy(output, maxlength, "Object");
+		}
+		case JSON_ARRAY: {
+			strcopy(output, maxlength, "Array");
+		}
+		case JSON_STRING: {
+			strcopy(output, maxlength, "String");
+		}
+		case JSON_INTEGER: {
+			strcopy(output, maxlength, "Integer");
+		}
+		case JSON_REAL: {
+			strcopy(output, maxlength, "Real");
+		}
+		case JSON_TRUE: {
+			strcopy(output, maxlength, "True");
+		}
+		case JSON_FALSE: {
+			strcopy(output, maxlength, "False");
+		}
+		case JSON_NULL: {
+			strcopy(output, maxlength, "Null");
+		}
+		default: {
+			return false;
+		}
 	}
 
 	return true;
 }
-
-
 
 /**
  * --- Equality
@@ -128,9 +143,6 @@ stock bool Stringify_json_type(json_type input, char[] output, int maxlength) {
  * @return                  True if the values are equal, false otherwise.
  */
 native bool json_equal(Handle hObj, Handle hOther);
-
-
-
 
 /**
  * --- Copying
@@ -170,9 +182,6 @@ native Handle json_copy(Handle hObj);
  * @return                  Handle to the copy.
  */
 native Handle json_deep_copy(Handle hObj);
-
-
-
 
 /**
  * --- Objects
@@ -382,9 +391,6 @@ native bool json_object_update_missing_new(Handle hObj, Handle hOther);
  */
 native bool json_object_update_recursive(Handle hObj, Handle hOther);
 
-
-
-
 /**
  * Object iteration
  *
@@ -531,9 +537,6 @@ native bool json_object_iter_set(Handle hObj, Handle hIter, Handle hValue);
  *                          object or the iterator points at nothing.
  */
 native bool json_object_iter_set_new(Handle hObj, Handle hIter, Handle hValue);
-
-
-
 
 /**
  * Arrays
@@ -708,9 +711,6 @@ native bool json_array_clear(Handle hArray);
  */
 native bool json_array_extend(Handle hArray, Handle hOther);
 
-
-
-
 /**
  * Booleans & NULL
  *
@@ -751,9 +751,6 @@ native Handle json_boolean(bool bState);
  * @return                  Handle to the new NULL object
  */
 native Handle json_null();
-
-
-
 
 /**
  * Strings
@@ -808,9 +805,6 @@ native int json_string_value(Handle hString, char[] sValueBuffer, int maxlength)
  *                          JSON string.
  */
 native bool json_string_set(Handle hString, char[] sValue);
-
-
-
 
 /**
  * Numbers
@@ -904,9 +898,6 @@ native bool json_real_set(Handle hReal, float value);
  *                          or 0.0 if hNumber is not a JSON number.
  */
 native float json_number_value(Handle hNumber);
-
-
-
 
 /**
  * Decoding
@@ -1012,7 +1003,8 @@ native Handle json_load(const char[] sJSON, int iFlags = 0);
  *                          array unless JSON_DECODE_ANY is passed),
  *                          or INVALID_HANDLE on error.
  */
-native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
+native Handle json_load_ex(const char[] sJSON, char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0,
+                           json_error_code &iErrorCode = json_error_unknown);
 
 /**
  * Decodes the JSON text in file sFilePath and returns the value it
@@ -1059,9 +1051,8 @@ native Handle json_load_file(const char sFilePath[PLATFORM_MAX_PATH], int iFlags
  *                          array unless JSON_DECODE_ANY is passed),
  *                          or INVALID_HANDLE on error.
  */
-native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] sErrorText, int maxlen, int &iLine, int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
-
-
+native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] sErrorText, int maxlen, int &iLine,
+                                int &iColumn, int iFlags = 0, json_error_code &iErrorCode = json_error_unknown);
 
 /**
  * Encoding
@@ -1125,7 +1116,8 @@ native Handle json_load_file_ex(const char sFilePath[PLATFORM_MAX_PATH], char[] 
  *                          than or equal to maxlength if it was cut off), or
  *                          -1 if hObject is not a JSON object or array.
  */
-native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
+native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWidth = 4, bool bEnsureAscii = false,
+                     bool bSortKeys = false, bool bPreserveOrder = false);
 
 /**
  * Write the JSON representation of hObject to the file sFilePath.
@@ -1154,7 +1146,8 @@ native int json_dump(Handle hObject, char[] sJSON, int maxlength, int iIndentWid
  * @return                  True on success, false if hObject is not a JSON
  *                          object or array or the file can not be written.
  */
-native bool json_dump_file(Handle hObject, const char[] sFilePath, int iIndentWidth = 4, bool bEnsureAscii = false, bool bSortKeys = false, bool bPreserveOrder = false);
+native bool json_dump_file(Handle hObject, const char[] sFilePath, int iIndentWidth = 4, bool bEnsureAscii = false,
+                           bool bSortKeys = false, bool bPreserveOrder = false);
 
 /**
  * Like json_dump(), with the options as flags (see 'Encoding').
@@ -1187,8 +1180,6 @@ native int json_dump_ex(Handle hObject, char[] sJSON, int maxlength, int iFlags)
  *                          JSON_ENCODE_ANY) or the file can not be written.
  */
 native bool json_dump_file_ex(Handle hObject, const char[] sFilePath, int iFlags);
-
-
 
 /**
  * Convenience stocks
@@ -1240,7 +1231,6 @@ stock Handle json_string_format_ex(int tmpBufferLength, const char[] sFormat, an
 
 	return json_string(sTmp);
 }
-
 
 /**
  * Returns the boolean value of the element in hArray at position iIndex.
@@ -1317,7 +1307,7 @@ stock int json_array_get_string(Handle hArray, int iIndex, char[] sBuffer, int m
 	Handle hElement = json_array_get(hArray, iIndex);
 
 	int iResult = -1;
-	if(json_is_string(hElement)) {
+	if (json_is_string(hElement)) {
 		iResult = json_string_value(hElement, sBuffer, maxlength);
 	}
 	delete hElement;
@@ -1400,15 +1390,13 @@ stock int json_object_get_string(Handle hObj, const char[] sKey, char[] sBuffer,
 	Handle hElement = json_object_get(hObj, sKey);
 
 	int iResult = -1;
-	if(json_is_string(hElement)) {
+	if (json_is_string(hElement)) {
 		iResult = json_string_value(hElement, sBuffer, maxlength);
 	}
 	delete hElement;
 
 	return iResult;
 }
-
-
 
 /**
  * Pack String Rules
@@ -1460,10 +1448,6 @@ stock Handle json_pack(const char[] sPackString, ArrayList hParams) {
 	return json_pack_element_(sPackString, iPos, hParams);
 }
 
-
-
-
-
 /**
 * Internal stocks used by json_pack(). Don't use these directly!
 *
@@ -1471,16 +1455,16 @@ stock Handle json_pack(const char[] sPackString, ArrayList hParams) {
 stock Handle json_pack_array_(const char[] sFormat, int &iPos, ArrayList hParams) {
 	Handle hObj = json_array();
 	int iStrLen = strlen(sFormat);
-	for(; iPos < iStrLen;) {
+	for (; iPos < iStrLen;) {
 		int this_char = sFormat[iPos];
 
-		if(this_char == 32 || this_char == 58 || this_char == 44) {
+		if (this_char == 32 || this_char == 58 || this_char == 44) {
 			// Skip whitespace, ',' and ':'
 			iPos++;
 			continue;
 		}
 
-		if(this_char == 93) {
+		if (this_char == 93) {
 			// array end
 			iPos++;
 			break;
@@ -1500,22 +1484,22 @@ stock Handle json_pack_array_(const char[] sFormat, int &iPos, ArrayList hParams
 stock Handle json_pack_object_(const char[] sFormat, int &iPos, ArrayList hParams) {
 	Handle hObj = json_object();
 	int iStrLen = strlen(sFormat);
-	for(; iPos < iStrLen;) {
+	for (; iPos < iStrLen;) {
 		int this_char = sFormat[iPos];
 
-		if(this_char == 32 || this_char == 58 || this_char == 44) {
+		if (this_char == 32 || this_char == 58 || this_char == 44) {
 			// Skip whitespace, ',' and ':'
 			iPos++;
 			continue;
 		}
 
-		if(this_char == 125) {
+		if (this_char == 125) {
 			// } --> object end
 			iPos++;
 			break;
 		}
 
-		if(this_char != 115) {
+		if (this_char != 115) {
 			LogError("Object keys must be strings at %d.", iPos);
 			return INVALID_HANDLE;
 		}
@@ -1544,7 +1528,7 @@ stock Handle json_pack_object_(const char[] sFormat, int &iPos, ArrayList hParam
 
 stock Handle json_pack_element_(const char[] sFormat, int &iPos, ArrayList hParams) {
 	int this_char = sFormat[iPos];
-	while(this_char == 32 || this_char == 58 || this_char == 44) {
+	while (this_char == 32 || this_char == 58 || this_char == 44) {
 		iPos++;
 		this_char = sFormat[iPos];
 	}
@@ -1552,7 +1536,7 @@ stock Handle json_pack_element_(const char[] sFormat, int &iPos, ArrayList hPara
 	// Advance one character in the pack string
 	iPos++;
 
-	switch(this_char) {
+	switch (this_char) {
 		case 91: {
 			// {  --> Array
 			return json_pack_array_(sFormat, iPos, hParams);
@@ -1561,7 +1545,6 @@ stock Handle json_pack_element_(const char[] sFormat, int &iPos, ArrayList hPara
 		case 123: {
 			// {  --> Object
 			return json_pack_object_(sFormat, iPos, hParams);
-
 		}
 
 		case 98: {
@@ -1607,10 +1590,6 @@ stock Handle json_pack_element_(const char[] sFormat, int &iPos, ArrayList hPara
 	return json_null();
 }
 
-
-
-
-
 /**
  * Not yet implemented
  *
@@ -1619,16 +1598,10 @@ stock Handle json_pack_element_(const char[] sFormat, int &iPos, ArrayList hPara
  *
  */
 
-
-
-
-
-
 /**
  * Do not edit below this line!
  */
-public Extension __ext_smjansson =
-{
+public Extension __ext_smjansson = {
 	name = "SMJansson",
 	file = "smjansson.ext",
 #if defined AUTOLOAD_EXTENSIONS
@@ -1644,8 +1617,7 @@ public Extension __ext_smjansson =
 };
 
 #if !defined REQUIRE_EXTENSIONS
-public void __ext_smjansson_SetNTVOptional()
-{
+public void __ext_smjansson_SetNTVOptional() {
 	MarkNativeAsOptional("json_typeof");
 	MarkNativeAsOptional("json_equal");
 
@@ -1704,7 +1676,7 @@ public void __ext_smjansson_SetNTVOptional()
 	MarkNativeAsOptional("json_boolean");
 	MarkNativeAsOptional("json_true");
 	MarkNativeAsOptional("json_false");
-	MarkNativeAsOptional("json_null");	
+	MarkNativeAsOptional("json_null");
 
 	MarkNativeAsOptional("json_load");
 	MarkNativeAsOptional("json_load_ex");
